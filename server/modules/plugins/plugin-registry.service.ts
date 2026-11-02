@@ -26,8 +26,8 @@ function sanitizeRepoUrl(raw) {
     return raw.replace(/\/\/[^@/]+@/, '//');
   }
 }
-const ALLOWED_TYPES = ['react', 'module'];
-const ALLOWED_SLOTS = ['tab'];
+const ALLOWED_TYPES = ['react', 'module', 'agent'];
+const ALLOWED_SLOTS = ['tab', 'agent'];
 
 export function getPluginsDir() {
   if (!fs.existsSync(PLUGINS_DIR)) {
@@ -87,6 +87,12 @@ export function validateManifest(manifest) {
   if (manifest.server !== undefined && manifest.server !== null) {
     if (typeof manifest.server !== 'string' || manifest.server.includes('..') || path.isAbsolute(manifest.server)) {
       return { valid: false, error: 'Server entry must be a relative path string without ".."' };
+    }
+  }
+
+  if (manifest.agent !== undefined && manifest.agent !== null) {
+    if (typeof manifest.agent !== 'object' || Array.isArray(manifest.agent)) {
+      return { valid: false, error: 'Agent configuration must be an object' };
     }
   }
 

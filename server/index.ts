@@ -38,6 +38,7 @@ import { userRoutes } from './modules/user/index.js';
 import {
     getPluginPort,
     pluginsRoutes,
+    registerEnabledAgentPlugins,
     startEnabledPluginServers,
     stopAllPlugins,
 } from './modules/plugins/index.js';
@@ -379,6 +380,9 @@ async function startServer() {
                 .catch((error) => {
                     console.warn('[WARN] Could not check for leftover OpenCode servers:', getErrorMessage(error));
                 });
+
+            // Discover and register agent plugins into providerRegistry before session sync
+            registerEnabledAgentPlugins();
 
             // Start watching the projects folder for changes
             await initializeSessionsWatcher();

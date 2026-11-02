@@ -1,4 +1,5 @@
 import type { LLMProvider } from '@/shared/types.js';
+import { providerRegistry } from '@/modules/providers/provider.registry.js';
 
 /**
  * Static, backend-owned description of what one provider integration supports.
@@ -123,6 +124,21 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
   },
 };
 
+const DEFAULT_AGENT_CAPABILITIES = (provider: LLMProvider): ProviderCapabilities => ({
+  provider,
+  permissionModes: ['default', 'auto', 'bypassPermissions'],
+  defaultPermissionMode: 'default',
+  supportsImages: true,
+  supportsFiles: true,
+  supportsAbort: true,
+  supportsPermissionRequests: false,
+  supportsTokenUsage: true,
+  supportsEffort: true,
+  effortLevels: ['low', 'medium', 'high'],
+  supportsMessageEditing: false,
+  supportsSessionForking: false,
+});
+
 /**
  * Application service exposing the provider capability matrix. Used by the
  * Providers routes (the capabilities endpoints) and by the Providers model
@@ -130,10 +146,17 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
  */
 export const providerCapabilitiesService = {
   getProviderCapabilities(provider: LLMProvider): ProviderCapabilities {
-    return PROVIDER_CAPABILITIES[provider];
+    return PROVIDER_CAPABILITIES[provider] || DEFAULT_AGENT_CAPABILITIES(provider);
   },
 
   listAllProviderCapabilities(): ProviderCapabilities[] {
-    return Object.values(PROVIDER_CAPABILITIES);
+    const list = Object.values(PROVIDER_CAPABILITIES);
+    const known = new Set(list.map((c) => c.provider));
+    for (const p of providerRegistry.listProviders()) {
+      if (!known.has(p.id)) {
+        list.push(DEFAULT_AGENT_CAPABILITIES(p.id));
+      }
+    }
+    return list;
   },
 };

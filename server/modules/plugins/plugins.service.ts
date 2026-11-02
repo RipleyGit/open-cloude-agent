@@ -1,4 +1,6 @@
 import { AppError } from '@/shared/utils.js';
+import { providerRegistry } from '../providers/provider.registry.js';
+import { PluginAgentProvider } from './plugin-agent.provider.js';
 
 type PluginManifest = Record<string, unknown> & {
   name: string;
@@ -52,6 +54,27 @@ function normalizePluginManifest(value: unknown): PluginManifest {
   return manifest as PluginManifest;
 }
 
+function registerAgentPluginIfNeeded(plugin: PluginManifest, pluginDir: string | null): void {
+  if (!pluginDir) return;
+  if (plugin.type === 'agent' || plugin.agent) {
+    try {
+      const provider = new PluginAgentProvider(plugin as any, pluginDir);
+      providerRegistry.registerProvider(provider);
+      console.log(`[Plugins] Dynamically registered agent provider "${provider.id}"`);
+    } catch (err: any) {
+      console.error(`[Plugins] Failed to dynamically register agent provider "${plugin.name}":`, err.message);
+    }
+  }
+}
+
+function unregisterAgentPluginIfNeeded(plugin: PluginManifest): void {
+  if (plugin.type === 'agent' || plugin.agent) {
+    const rawId = (plugin.agent as any)?.id || (plugin.agent as any)?.providerId || plugin.name.replace(/^cloudcli-plugin-/, '');
+    providerRegistry.unregisterProvider(rawId);
+    console.log(`[Plugins] Dynamically unregistered agent provider "${rawId}"`);
+  }
+}
+
 /** Creates plugin-management workflows around loader and process adapters. */
 export function createPluginsService(dependencies: PluginDependencies) {
   async function startServerIfAvailable(plugin: PluginManifest): Promise<void> {
@@ -102,6 +125,11 @@ export function createPluginsService(dependencies: PluginDependencies) {
       if (plugin.server && !enabled && dependencies.isServerRunning(pluginName)) {
         await dependencies.stopServer(pluginName);
       }
+      if (enabled) {
+        registerAgentPluginIfNeeded(plugin, dependencies.getPluginDirectory(pluginName));
+      } else {
+        unregisterAgentPluginIfNeeded(plugin);
+      }
       return { success: true, name: pluginName, enabled };
     },
     async install(urlInput: unknown) {
@@ -111,6 +139,7 @@ export function createPluginsService(dependencies: PluginDependencies) {
       }
       const plugin = normalizePluginManifest(await dependencies.install(url));
       await startServerIfAvailable(plugin);
+      registerAgentPluginIfNeeded(plugin, dependencies.getPluginDirectory(plugin.name));
       return { success: true, plugin };
     },
     async update(pluginName: string) {
@@ -153,6 +182,10 @@ export function createPluginsService(dependencies: PluginDependencies) {
     },
     async uninstall(pluginName: string) {
       validatePluginName(pluginName);
+      const plugin = dependencies.scanPlugins().find((candidate) => candidate.name === pluginName);
+      if (plugin) {
+        unregisterAgentPluginIfNeeded(plugin);
+      }
       if (dependencies.isServerRunning(pluginName)) await dependencies.stopServer(pluginName);
       await dependencies.uninstall(pluginName);
       return { success: true, name: pluginName };

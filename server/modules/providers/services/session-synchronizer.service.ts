@@ -79,12 +79,10 @@ let inFlightSynchronization: Promise<SessionSynchronizeResult> | null = null;
 async function runSessionSynchronization(): Promise<SessionSynchronizeResult> {
   const lastScanAt = scanStateDb.getLastScannedAt();
   const scanBoundary = new Date();
-  const processedByProvider: Record<LLMProvider, number> = {
-    claude: 0,
-    codex: 0,
-    cursor: 0,
-    opencode: 0,
-  };
+  const processedByProvider: Record<LLMProvider, number> = {} as Record<LLMProvider, number>;
+  for (const provider of providerRegistry.listProviders()) {
+    processedByProvider[provider.id] = 0;
+  }
   const failures: string[] = [];
 
   const results = await Promise.allSettled(

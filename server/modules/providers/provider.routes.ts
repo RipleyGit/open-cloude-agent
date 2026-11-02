@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from 'express';
 
 import { providerAuthService } from '@/modules/providers/services/provider-auth.service.js';
+import { providerRegistry } from '@/modules/providers/provider.registry.js';
 import { claudeSettingsPermissionsService } from '@/modules/providers/services/claude-settings-permissions.service.js';
 import { providerCapabilitiesService } from '@/modules/providers/services/provider-capabilities.service.js';
 import { providerCliService } from '@/modules/providers/services/provider-cli.service.js';
@@ -314,13 +315,8 @@ const parseProviderSkillCreatePayload = (payload: unknown): ProviderSkillCreateI
 
 const parseProvider = (value: unknown): LLMProvider => {
   const normalized = normalizeProviderParam(value);
-  if (
-    normalized === 'claude'
-    || normalized === 'codex'
-    || normalized === 'cursor'
-    || normalized === 'opencode'
-  ) {
-    return normalized;
+  if (providerRegistry.hasProvider(normalized)) {
+    return normalized as LLMProvider;
   }
 
   throw new AppError(`Unsupported provider "${normalized}".`, {

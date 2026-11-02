@@ -1,4 +1,4 @@
-﻿# Providers Module Guide
+# Providers Module Guide
 
 This file documents the current provider contract in `server/modules/providers`.
 Keep it current whenever provider wiring, skill discovery, or session sync
@@ -39,15 +39,16 @@ The services that consume them are:
 Live execution is consumed through `providerRuntimeService`, which resolves the
 provider-owned runtime through the same `providerRegistry` as every other facet.
 
-Current provider ids in this repo are:
+Current built-in provider ids in this repo are:
 
 - `claude`
 - `codex`
 - `cursor`
 - `opencode`
 
-Those ids are mirrored in backend unions and frontend provider constants. If
-adding a new provider, update every place that hardcodes this list.
+### Dynamic Agent Providers (Plugin System)
+
+In addition to built-ins, `providerRegistry` dynamically registers agent plugins that declare `type: "agent"` (or have an `agent` configuration in their `manifest.json`). These dynamic providers are instantiated through `PluginAgentProvider` (`server/modules/plugins/plugin-agent.provider.ts`) and automatically expose runtime execution, models catalog, auth detection, session history, and session synchronization to the system.
 
 ## Current File Layout
 
