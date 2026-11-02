@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertCircle, CheckCircle2, Download, GitBranch, Loader2, Plus, Sparkles, X } from 'lucide-react';
-import { Button, Dialog, DialogContent, DialogTitle, Input, LLMProviderLogo } from '@/shared/ui';
+import { Button, Input, LLMProviderLogo } from '@/shared/ui';
 
 type InstallAgentModalProps = {
   isOpen: boolean;
@@ -29,6 +30,28 @@ export default function InstallAgentModal({
   const [gitUrl, setGitUrl] = useState('');
   const [isInstalling, setIsInstalling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Close on Escape without bubbling to Settings modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (!isInstalling) {
+          onClose();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isOpen, isInstalling, onClose]);
+
+  if (!isOpen) return null;
 
   const handleInstallUrl = async (url: string) => {
     const trimmed = url.trim();
@@ -59,15 +82,28 @@ export default function InstallAgentModal({
     }
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && !isInstalling && onClose()}>
-      <DialogContent className="max-w-xl p-0 overflow-hidden">
+  return createPortal(
+    <div
+      data-escape-layer
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isInstalling) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-xl rounded-xl border border-border bg-background text-foreground shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Plus className="h-4 w-4" />
             </div>
-            <DialogTitle className="text-base font-semibold">安装 Agent 插件</DialogTitle>
+            <h3 className="text-base font-semibold text-foreground">安装 Agent 插件</h3>
           </div>
           <button
             type="button"
@@ -106,6 +142,7 @@ export default function InstallAgentModal({
                 className="font-mono text-xs"
               />
               <Button
+                type="button"
                 onClick={() => handleInstallUrl(gitUrl)}
                 disabled={isInstalling || !gitUrl.trim()}
                 className="shrink-0 gap-1.5"
@@ -155,6 +192,7 @@ export default function InstallAgentModal({
                         </div>
                       ) : (
                         <Button
+                          type="button"
                           size="sm"
                           variant="secondary"
                           onClick={() => handleInstallUrl(rec.repoUrl)}
@@ -176,7 +214,8 @@ export default function InstallAgentModal({
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body
   );
 }

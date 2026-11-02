@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import fs from 'node:fs';
 
 import { AppError } from '@/shared/utils.js';
 import { providerRegistry } from '../providers/provider.registry.js';
@@ -126,7 +127,30 @@ export const agentPluginsService = {
       });
     }
 
-    const rawManifest = (await installPluginFromGit(url)) as any;
+    const urlClean = url.replace(/\.git$/, '').replace(/\/$/, '');
+    const repoName = urlClean.split('/').pop() || '';
+    const pluginsDir = getPluginsDir();
+    const targetDir = path.resolve(pluginsDir, repoName);
+
+    let rawManifest: any;
+    if (fs.existsSync(targetDir)) {
+      try {
+        rawManifest = (await updatePluginFromGit(repoName)) as any;
+      } catch (err: any) {
+        try {
+          fs.rmSync(targetDir, { recursive: true, force: true });
+          rawManifest = (await installPluginFromGit(url)) as any;
+        } catch (innerErr: any) {
+          throw new AppError(`Failed to install plugin: ${innerErr.message || err.message}`, {
+            code: 'PLUGIN_INSTALL_FAILED',
+            statusCode: 500,
+          });
+        }
+      }
+    } else {
+      rawManifest = (await installPluginFromGit(url)) as any;
+    }
+
     const isAgent = rawManifest.type === 'agent' || Boolean(rawManifest.agent);
 
     if (!isAgent) {
@@ -143,6 +167,10 @@ export const agentPluginsService = {
         }
       );
     }
+
+    const config = getPluginsConfig();
+    config[rawManifest.name] = { ...config[rawManifest.name], enabled: true };
+    savePluginsConfig(config);
 
     const pluginDir = getPluginDir(rawManifest.name);
     if (!pluginDir) {
