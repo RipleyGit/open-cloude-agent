@@ -100,7 +100,7 @@ export default function ModelLibraryPanel({
     if (initialProvider && !known.has(initialProvider)) {
       list.push({
         id: initialProvider,
-        label: initialProvider.charAt(0).toUpperCase() + initialProvider.slice(1),
+        label: initialProvider === 'agy' ? 'Antigravity CLI' : (initialProvider.charAt(0).toUpperCase() + initialProvider.slice(1)),
       });
       known.add(initialProvider);
     }
@@ -108,7 +108,7 @@ export default function ModelLibraryPanel({
       if (!known.has(provId as LLMProvider)) {
         list.push({
           id: provId as LLMProvider,
-          label: provId.charAt(0).toUpperCase() + provId.slice(1),
+          label: provId === 'agy' ? 'Antigravity CLI' : (provId.charAt(0).toUpperCase() + provId.slice(1)),
         });
         known.add(provId as LLMProvider);
       }

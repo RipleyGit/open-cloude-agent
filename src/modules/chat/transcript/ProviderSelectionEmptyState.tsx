@@ -78,7 +78,8 @@ function getProviderDisplayName(p: LLMProvider) {
   if (p === "cursor") return "Cursor";
   if (p === "codex") return "Codex";
   if (p === "opencode") return "OpenCode";
-  return "Claude";
+  if (p === "agy") return "Antigravity CLI";
+  return String(p).charAt(0).toUpperCase() + String(p).slice(1);
 }
 
 /**
@@ -134,12 +135,12 @@ export default function ProviderSelectionEmptyState({
     const extra: ModelGroup[] = [];
 
     for (const [provId, def] of Object.entries(providerModelCatalog)) {
-      if (!knownKeys.has(provId as LLMProvider) && def?.OPTIONS && def.OPTIONS.length > 0) {
+      if (!knownKeys.has(provId as LLMProvider)) {
         extra.push({
           key: provId,
           provider: provId as LLMProvider,
-          name: provId.charAt(0).toUpperCase() + provId.slice(1),
-          models: def.OPTIONS,
+          name: getProviderDisplayName(provId as LLMProvider),
+          models: def?.OPTIONS ?? [],
         });
       }
     }
