@@ -41,11 +41,11 @@ describe('AgentsSettingsTab - Agent Plugins', () => {
   it('renders built-in agents and loads installed agent plugins into the selector', async () => {
     const mockPlugins = [
       {
-        name: 'cloudcli-plugin-agy',
-        displayName: 'Google Antigravity (agy)',
+        name: 'cloude-agent-agycli',
+        displayName: 'Antigravity CLI',
         version: '1.0.0',
-        description: 'Local Google Antigravity driver',
-        author: 'Google',
+        description: 'Antigravity CLI (agy) driver',
+        author: 'Ripley',
         icon: 'Bot',
         type: 'agent',
         providerId: 'agy',
@@ -56,7 +56,7 @@ describe('AgentsSettingsTab - Agent Plugins', () => {
           { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
         ],
         enabled: true,
-        repoUrl: 'https://github.com/solshevik/cloudcli-plugin-agy.git',
+        repoUrl: 'https://github.com/RipleyGit/cloude-agent-agycli.git',
         serverRunning: true,
         cliStatus: { installed: true, version: '1.0.0', exitCode: 0 },
       },
@@ -90,11 +90,11 @@ describe('AgentsSettingsTab - Agent Plugins', () => {
 
     // After loading, AGY should appear in the pills
     await waitFor(() => {
-      expect(screen.getByText('Google Antigravity (agy)')).toBeTruthy();
+      expect(screen.getByText('Antigravity CLI')).toBeTruthy();
     });
 
     // Click on AGY pill button to switch to it
-    const agyPill = screen.getByText('Google Antigravity (agy)').closest('button');
+    const agyPill = screen.getByText('Antigravity CLI').closest('button');
     expect(agyPill).toBeTruthy();
     fireEvent.click(agyPill!);
 
@@ -132,7 +132,7 @@ describe('AgentsSettingsTab - Agent Plugins', () => {
     // Modal title should appear in the document
     await waitFor(() => {
       expect(screen.getByText('安装 Agent 插件')).toBeTruthy();
-      expect(screen.getByText('Google Antigravity (AGY)')).toBeTruthy();
+      expect(screen.getByText('Antigravity CLI')).toBeTruthy();
     });
   });
 });

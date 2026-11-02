@@ -27,10 +27,10 @@ type InstallAgentModalProps = {
 const DEFAULT_AGENT_RECOMMENDATIONS: RecommendedAgentPlugin[] = [
   {
     id: 'cloude-agent-agycli',
-    name: 'Google Antigravity (AGY)',
+    name: 'Antigravity CLI',
     providerId: 'agy',
     repoUrl: 'https://github.com/RipleyGit/cloude-agent-agycli.git',
-    description: '本地 Google Antigravity (agy) 执行驱动与 Agent Provider，支持 Gemini 2.5/3.8 模型调度与双向会话同步',
+    description: '本地 Antigravity CLI (agy) 执行驱动与 Agent Provider，支持 Gemini 2.5/3.8 模型调度与双向会话同步',
     author: 'Ripley',
     version: '1.0.0',
   },
@@ -182,7 +182,7 @@ export default function InstallAgentModal({
 
         <div className="space-y-5 p-5">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Agent 插件是独立的 AI Coding Provider（例如 Google Antigravity <code className="font-mono font-medium">agy</code>），安装后系统将根据该 Agent 插件进行会话创建、调度执行与模型选择。支持从官方插件集合仓库一键安装，或直接输入任意 GitHub 仓库地址。普通 UI 扩展请在“设置 - 插件”中安装。
+            Agent 插件是独立的 AI Coding Provider（例如 Antigravity CLI <code className="font-mono font-medium">agy</code>），安装后系统将根据该 Agent 插件进行会话创建、调度执行与模型选择。支持从官方插件集合仓库一键安装，或直接输入任意 GitHub 仓库地址。普通 UI 扩展请在“设置 - 插件”中安装。
           </p>
 
           {error && (

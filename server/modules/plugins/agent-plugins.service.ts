@@ -60,10 +60,10 @@ export interface RecommendedAgentPlugin {
 export const DEFAULT_RECOMMENDED_PLUGINS: RecommendedAgentPlugin[] = [
   {
     id: 'cloude-agent-agycli',
-    name: 'Google Antigravity (AGY)',
+    name: 'Antigravity CLI',
     providerId: 'agy',
     repoUrl: 'https://github.com/RipleyGit/cloude-agent-agycli.git',
-    description: '本地 Google Antigravity (agy) 执行驱动与 Agent Provider，支持 Gemini 2.5/3.8 模型调度与双向会话同步',
+    description: '本地 Antigravity CLI (agy) 执行驱动与 Agent Provider，支持 Gemini 2.5/3.8 模型调度与双向会话同步',
     icon: 'Bot',
     author: 'Ripley',
     version: '1.0.0',
@@ -143,10 +143,12 @@ export const agentPluginsService = {
 
     for (const plugin of plugins) {
       if ((plugin.name === 'cloude-agent-agycli' || plugin.name === 'cloudcli-plugin-agy') && !plugin.agent) {
+        (plugin as any).displayName = plugin.displayName || 'Antigravity CLI';
         (plugin as any).type = 'agent';
         (plugin as any).agent = {
           providerId: 'agy',
           cliName: 'agy',
+          displayName: 'Antigravity CLI',
           defaultModel: 'gemini-2.5-pro',
           watchPaths: ['~/.gemini/antigravity-cli/brain'],
           models: [
@@ -242,10 +244,12 @@ export const agentPluginsService = {
 
     // Auto-enrich well-known official Agent plugins if manifest lacks agent metadata
     if ((rawManifest.name === 'cloude-agent-agycli' || rawManifest.name === 'cloudcli-plugin-agy') && !rawManifest.agent) {
+      rawManifest.displayName = rawManifest.displayName || 'Antigravity CLI';
       rawManifest.type = 'agent';
       rawManifest.agent = {
         providerId: 'agy',
         cliName: 'agy',
+        displayName: 'Antigravity CLI',
         defaultModel: 'gemini-2.5-pro',
         watchPaths: ['~/.gemini/antigravity-cli/brain'],
         models: [
