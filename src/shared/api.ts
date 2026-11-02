@@ -600,6 +600,7 @@ export const api = {
 
   agentPlugins: {
     list: () => get('/api/agent-plugins'),
+    recommended: () => get('/api/agent-plugins/recommended'),
     install: (url: string) => post('/api/agent-plugins/install', { url }),
     uninstall: (name: string) => del(`/api/agent-plugins/${encodeURIComponent(name)}`),
     update: (name: string) => post(`/api/agent-plugins/${encodeURIComponent(name)}/update`),

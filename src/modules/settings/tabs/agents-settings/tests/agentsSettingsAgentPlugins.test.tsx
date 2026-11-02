@@ -12,6 +12,7 @@ vi.mock('@/shared/api', async (importOriginal) => {
       ...actual.api,
       agentPlugins: {
         list: vi.fn(),
+        recommended: vi.fn().mockResolvedValue({ success: true, data: [] }),
         install: vi.fn(),
         update: vi.fn(),
         toggle: vi.fn(),
@@ -32,6 +33,9 @@ const mockProviderAuthStatus = {
 describe('AgentsSettingsTab - Agent Plugins', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    if ((api.agentPlugins as any)?.recommended) {
+      (api.agentPlugins.recommended as any).mockResolvedValue({ success: true, data: [] });
+    }
   });
 
   it('renders built-in agents and loads installed agent plugins into the selector', async () => {

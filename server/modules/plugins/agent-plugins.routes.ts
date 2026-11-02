@@ -16,6 +16,8 @@ export function createAgentPluginsRouter(): express.Router {
 
   router.get('/', respond(() => agentPluginsService.list()));
 
+  router.get('/recommended', respond(() => agentPluginsService.getRecommended()));
+
   router.get('/:name/status', respond((req) => {
     const name = Array.isArray(req.params.name) ? req.params.name[0] : req.params.name;
     return agentPluginsService.getStatus(name);
