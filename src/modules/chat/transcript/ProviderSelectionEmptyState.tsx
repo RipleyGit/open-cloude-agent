@@ -138,7 +138,7 @@ export default function ProviderSelectionEmptyState({
         extra.push({
           key: provId,
           provider: provId as LLMProvider,
-          name: provId === 'agy' ? 'Google AGY' : provId.charAt(0).toUpperCase() + provId.slice(1),
+          name: provId.charAt(0).toUpperCase() + provId.slice(1),
           models: def.OPTIONS,
         });
       }
@@ -346,7 +346,7 @@ export default function ProviderSelectionEmptyState({
                     defaultValue: "Ready with OpenCode {{model}}",
                   }),
                 } as Record<string, string>
-              )[provider] || `Ready with ${provider === 'agy' ? 'Google AGY' : String(provider)} (${providerModels[provider] || 'default'})`
+              )[provider] || `Ready with ${String(provider)} (${providerModels[provider] || 'default'})`
             }
           </p>
 

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import express, { type Request, type Response } from 'express';
 
 import { providerAuthService } from '@/modules/providers/services/provider-auth.service.js';
@@ -639,6 +641,58 @@ router.get(
       };
     });
     res.json(createApiSuccessResponse({ providers: list }));
+  }),
+);
+
+router.get(
+  '/:provider/icon',
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawProvider = String(req.params.provider || '').toLowerCase();
+    if (!providerRegistry.hasProvider(rawProvider as LLMProvider)) {
+      return res.status(404).end();
+    }
+
+    const provider = providerRegistry.resolveProvider(rawProvider as LLMProvider) as any;
+    if (provider.isPlugin && provider.pluginDir) {
+      const manifest = provider.manifest || {};
+      const iconFile = manifest.icon || 'icon.svg';
+      const possiblePaths = [
+        path.resolve(provider.pluginDir, iconFile),
+        path.resolve(provider.pluginDir, 'icon.svg'),
+        path.resolve(provider.pluginDir, 'icon.png'),
+      ];
+
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          const ext = path.extname(p).toLowerCase();
+          const contentType =
+            ext === '.svg' ? 'image/svg+xml' :
+            ext === '.png' ? 'image/png' :
+            ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+            ext === '.webp' ? 'image/webp' :
+            'application/octet-stream';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          return fs.createReadStream(p).pipe(res);
+        }
+      }
+    }
+
+    // Static public/icons fallback
+    const staticSvg = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.svg`);
+    const staticPng = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.png`);
+    if (fs.existsSync(staticSvg)) {
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return fs.createReadStream(staticSvg).pipe(res);
+    }
+    if (fs.existsSync(staticPng)) {
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return fs.createReadStream(staticPng).pipe(res);
+    }
+
+    return res.status(404).end();
   }),
 );
 

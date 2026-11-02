@@ -57,24 +57,7 @@ export interface RecommendedAgentPlugin {
   models?: Array<{ value: string; label: string }>;
 }
 
-export const DEFAULT_RECOMMENDED_PLUGINS: RecommendedAgentPlugin[] = [
-  {
-    id: 'cloude-agent-agycli',
-    name: 'Antigravity CLI',
-    providerId: 'agy',
-    repoUrl: 'https://github.com/RipleyGit/cloude-agent-agycli.git',
-    description: '本地 Antigravity CLI (agy) 执行驱动与 Agent Provider，支持 Gemini 2.5/3.8 模型调度与双向会话同步',
-    icon: 'Bot',
-    author: 'Ripley',
-    version: '1.0.0',
-    defaultModel: 'gemini-2.5-pro',
-    models: [
-      { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-      { value: 'gemini-3.8-flash-low', label: 'Gemini 3.8 Flash' },
-    ],
-  },
-];
+export const DEFAULT_RECOMMENDED_PLUGINS: RecommendedAgentPlugin[] = [];
 
 let recommendedCache: { data: RecommendedAgentPlugin[]; expiresAt: number } | null = null;
 
@@ -101,7 +84,7 @@ function extractProviderId(manifest: any): string {
   return (
     manifest.agent?.id ||
     manifest.agent?.providerId ||
-    manifest.name.replace(/^cloudcli-plugin-/, '')
+    manifest.name.replace(/^cloudcli-plugin-/, '').replace(/^cloude-agent-/, '')
   );
 }
 
@@ -130,7 +113,7 @@ export const agentPluginsService = {
         }
       }
     } catch {
-      // Offline or network error: use embedded defaults
+      // Offline or network error: return empty array
     }
 
     return DEFAULT_RECOMMENDED_PLUGINS;
@@ -142,23 +125,6 @@ export const agentPluginsService = {
     const agentPlugins: AgentPluginDetails[] = [];
 
     for (const plugin of plugins) {
-      if ((plugin.name === 'cloude-agent-agycli' || plugin.name === 'cloudcli-plugin-agy') && !plugin.agent) {
-        (plugin as any).displayName = plugin.displayName || 'Antigravity CLI';
-        (plugin as any).type = 'agent';
-        (plugin as any).agent = {
-          providerId: 'agy',
-          cliName: 'agy',
-          displayName: 'Antigravity CLI',
-          defaultModel: 'gemini-2.5-pro',
-          watchPaths: ['~/.gemini/antigravity-cli/brain'],
-          models: [
-            { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-            { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-            { value: 'gemini-3.8-flash-low', label: 'Gemini 3.8 Flash' },
-          ],
-        };
-      }
-
       const isAgent = plugin.type === 'agent' || Boolean(plugin.agent);
       if (!isAgent) continue;
 
@@ -240,24 +206,6 @@ export const agentPluginsService = {
       }
     } else {
       rawManifest = (await installPluginFromGit(url)) as any;
-    }
-
-    // Auto-enrich well-known official Agent plugins if manifest lacks agent metadata
-    if ((rawManifest.name === 'cloude-agent-agycli' || rawManifest.name === 'cloudcli-plugin-agy') && !rawManifest.agent) {
-      rawManifest.displayName = rawManifest.displayName || 'Antigravity CLI';
-      rawManifest.type = 'agent';
-      rawManifest.agent = {
-        providerId: 'agy',
-        cliName: 'agy',
-        displayName: 'Antigravity CLI',
-        defaultModel: 'gemini-2.5-pro',
-        watchPaths: ['~/.gemini/antigravity-cli/brain'],
-        models: [
-          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-          { value: 'gemini-3.8-flash-low', label: 'Gemini 3.8 Flash' },
-        ],
-      };
     }
 
     const isAgent = rawManifest.type === 'agent' || Boolean(rawManifest.agent);

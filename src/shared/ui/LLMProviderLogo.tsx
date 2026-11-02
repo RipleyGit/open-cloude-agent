@@ -1,6 +1,6 @@
+import { useState } from 'react';
 import type { LLMProvider } from '@/shared/types';
 import { Bot } from 'lucide-react';
-import AgyLogo from '@/shared/ui/AgyLogo';
 import ClaudeLogo from '@/shared/ui/ClaudeLogo';
 import CodexLogo from '@/shared/ui/CodexLogo';
 import CursorLogo from '@/shared/ui/CursorLogo';
@@ -9,13 +9,33 @@ import OpenCodeLogo from '@/shared/ui/OpenCodeLogo';
 type LLMProviderLogoProps = {
   provider?: LLMProvider | string | null;
   className?: string;
+  icon?: string | null;
 };
 
-/** Used by the chat, onboarding, project-workspace, settings and sidebar modules to show which coding agent a session or project belongs to. */
+/**
+ * Universal Provider Logo Component.
+ * Supports built-in legacy providers and dynamically loads icons for any installed Agent Plugin.
+ */
 export function LLMProviderLogo({
   provider = 'claude',
   className = 'w-5 h-5',
+  icon,
 }: LLMProviderLogoProps) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  // If a direct icon URL or data URI was provided, render it directly
+  if (icon && !imgFailed) {
+    return (
+      <img
+        src={icon}
+        alt={String(provider || 'agent')}
+        className={`${className} object-contain shrink-0 rounded-sm`}
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
+
+  // Built-in legacy providers
   if (provider === 'cursor') {
     return <CursorLogo className={className} />;
   }
@@ -28,12 +48,20 @@ export function LLMProviderLogo({
     return <OpenCodeLogo className={className} />;
   }
 
-  if (provider === 'agy' || (typeof provider === 'string' && provider.toLowerCase().includes('agy'))) {
-    return <AgyLogo className={className} />;
-  }
-
   if (provider === 'claude') {
     return <ClaudeLogo className={className} />;
+  }
+
+  // For any Agent Plugin: dynamically resolve through the generic provider icon endpoint
+  if (provider && !imgFailed) {
+    return (
+      <img
+        src={`/api/providers/${encodeURIComponent(String(provider))}/icon`}
+        alt={String(provider)}
+        className={`${className} object-contain shrink-0 rounded-sm`}
+        onError={() => setImgFailed(true)}
+      />
+    );
   }
 
   return <Bot className={className} />;

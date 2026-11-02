@@ -24,17 +24,7 @@ type InstallAgentModalProps = {
   installedRepoUrls: string[];
 };
 
-const DEFAULT_AGENT_RECOMMENDATIONS: RecommendedAgentPlugin[] = [
-  {
-    id: 'cloude-agent-agycli',
-    name: 'Antigravity CLI',
-    providerId: 'agy',
-    repoUrl: 'https://github.com/RipleyGit/cloude-agent-agycli.git',
-    description: '本地 Antigravity CLI (agy) 执行驱动与 Agent Provider，支持 Gemini 2.5/3.8 模型调度与双向会话同步',
-    author: 'Ripley',
-    version: '1.0.0',
-  },
-];
+const DEFAULT_AGENT_RECOMMENDATIONS: RecommendedAgentPlugin[] = [];
 
 export default function InstallAgentModal({
   isOpen,
@@ -182,7 +172,7 @@ export default function InstallAgentModal({
 
         <div className="space-y-5 p-5">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Agent 插件是独立的 AI Coding Provider（例如 Antigravity CLI <code className="font-mono font-medium">agy</code>），安装后系统将根据该 Agent 插件进行会话创建、调度执行与模型选择。支持从官方插件集合仓库一键安装，或直接输入任意 GitHub 仓库地址。普通 UI 扩展请在“设置 - 插件”中安装。
+            Agent 插件是独立的 AI Coding Provider，安装后系统将根据该 Agent 插件进行会话创建、调度执行与模型选择。支持从官方插件集合仓库一键安装，或直接输入任意 GitHub 仓库地址。普通 UI 扩展请在“设置 - 插件”中安装。
           </p>
 
           {error && (
@@ -197,7 +187,7 @@ export default function InstallAgentModal({
             <label className="text-xs font-medium text-foreground">输入 GitHub 仓库地址安装</label>
             <div className="flex gap-2">
               <Input
-                placeholder="https://github.com/.../cloude-agent-agycli.git"
+                placeholder="https://github.com/owner/repo.git"
                 value={gitUrl}
                 onChange={(e) => {
                   setGitUrl(e.target.value);
@@ -245,60 +235,66 @@ export default function InstallAgentModal({
             </div>
 
             <div className="space-y-2">
-              {recommendations.map((rec) => {
-                const isInstalled = isRepoInstalled(rec.repoUrl);
-                const isThisInstalling = isInstalling && installingUrl === rec.repoUrl;
+              {recommendations.length === 0 ? (
+                <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border/70 rounded-xl">
+                  {isLoadingRecs ? '正在加载推荐插件清单...' : '暂无推荐插件，您可直接在上方输入 GitHub 仓库地址安装。'}
+                </div>
+              ) : (
+                recommendations.map((rec) => {
+                  const isInstalled = isRepoInstalled(rec.repoUrl);
+                  const isThisInstalling = isInstalling && installingUrl === rec.repoUrl;
 
-                return (
-                  <div
-                    key={rec.repoUrl || rec.id}
-                    className="flex flex-col gap-2 rounded-xl border border-border/70 bg-muted/20 p-3.5 sm:flex-row sm:items-center sm:justify-between transition-colors hover:border-border"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background p-1.5 shadow-sm">
-                        <LLMProviderLogo provider={rec.providerId} className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground">{rec.name}</span>
-                          <span className="font-mono text-[11px] rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                            {rec.providerId}
-                          </span>
-                          {rec.version && (
-                            <span className="text-[10px] text-muted-foreground">v{rec.version}</span>
-                          )}
+                  return (
+                    <div
+                      key={rec.repoUrl || rec.id}
+                      className="flex flex-col gap-2 rounded-xl border border-border/70 bg-muted/20 p-3.5 sm:flex-row sm:items-center sm:justify-between transition-colors hover:border-border"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background p-1.5 shadow-sm">
+                          <LLMProviderLogo provider={rec.providerId} className="h-5 w-5" />
                         </div>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground leading-normal">{rec.description}</p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-foreground">{rec.name}</span>
+                            <span className="font-mono text-[11px] rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                              {rec.providerId}
+                            </span>
+                            {rec.version && (
+                              <span className="text-[10px] text-muted-foreground">v{rec.version}</span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground leading-normal">{rec.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="sm:self-center shrink-0">
+                        {isInstalled ? (
+                          <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>已安装</span>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleInstallUrl(rec.repoUrl)}
+                            disabled={isInstalling}
+                            className="h-8 gap-1.5 text-xs"
+                          >
+                            {isThisInstalling ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Download className="h-3.5 w-3.5" />
+                            )}
+                            <span>一键安装</span>
+                          </Button>
+                        )}
                       </div>
                     </div>
-
-                    <div className="sm:self-center shrink-0">
-                      {isInstalled ? (
-                        <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>已安装</span>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleInstallUrl(rec.repoUrl)}
-                          disabled={isInstalling}
-                          className="h-8 gap-1.5 text-xs"
-                        >
-                          {isThisInstalling ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Download className="h-3.5 w-3.5" />
-                          )}
-                          <span>一键安装</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

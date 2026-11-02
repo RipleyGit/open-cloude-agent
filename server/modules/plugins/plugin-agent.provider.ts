@@ -199,7 +199,10 @@ export class PluginAgentRuntime implements IProviderRuntime {
     }
 
     // 2. Direct CLI spawn fallback
-    const binary = this.manifest.agent?.cliName || this.manifest.agent?.binary || 'agy';
+    const binary =
+      this.manifest.agent?.cliName ||
+      this.manifest.agent?.binary ||
+      this.manifest.name.replace(/^cloudcli-plugin-/, '').replace(/^cloude-agent-/, '');
     return new Promise((resolve, reject) => {
       const args = [
         '-p',
@@ -399,7 +402,7 @@ export class PluginAgentAuth implements IProviderAuth {
   ) {}
 
   checkInstalled(): CliVersionProbe {
-    const binary = this.manifest.agent?.cliName || this.manifest.agent?.binary || 'agy';
+    const binary = this.manifest.agent?.cliName || this.manifest.agent?.binary || this.providerId;
     try {
       const probe = spawnSync(binary, ['--version'], { encoding: 'utf-8', timeout: 3000 });
       const installed = probe.status === 0;
@@ -693,12 +696,6 @@ export class PluginAgentSessionSynchronizer implements IProviderSessionSynchroni
         resolved = path.join(os.homedir(), resolved);
       }
       result.push({ rootPath: resolved });
-    }
-
-    if (result.length === 0 && (this.providerId === 'agy' || this.pluginName.includes('agy'))) {
-      result.push({
-        rootPath: path.join(os.homedir(), '.gemini', 'antigravity-cli', 'brain'),
-      });
     }
 
     return result;

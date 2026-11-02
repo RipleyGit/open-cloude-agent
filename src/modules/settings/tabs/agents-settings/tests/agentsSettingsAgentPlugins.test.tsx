@@ -132,7 +132,7 @@ describe('AgentsSettingsTab - Agent Plugins', () => {
     // Modal title should appear in the document
     await waitFor(() => {
       expect(screen.getByText('安装 Agent 插件')).toBeTruthy();
-      expect(screen.getByText('Antigravity CLI')).toBeTruthy();
+      expect(screen.getByText('官方集合仓库 (cloude-agent-plugins)')).toBeTruthy();
     });
   });
 });
