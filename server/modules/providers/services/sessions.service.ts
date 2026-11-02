@@ -495,7 +495,7 @@ export const sessionsService = {
 
     // App-created sessions that never produced a provider transcript yet
     // (e.g. first message still streaming) simply have no history.
-    if (!session.provider_session_id) {
+    if (!session.provider_session_id && !session.jsonl_path) {
       return {
         messages: [],
         total: 0,
@@ -507,7 +507,7 @@ export const sessionsService = {
 
     const provider = session.provider as LLMProvider;
     const providerSessions = providerRegistry.resolveProvider(provider).sessions;
-    const providerSessionId = session.provider_session_id;
+    const providerSessionId = session.provider_session_id || session.session_id;
     const projectPath = session.project_path ?? '';
     const requestedLimit = options.limit ?? null;
     const requestedOffset = options.offset ?? 0;
@@ -517,7 +517,7 @@ export const sessionsService = {
     // re-parsing the whole file per request. Cursor and OpenCode read their
     // messages from elsewhere (store.db / shared SQLite), so that file's stat
     // says nothing about their history — they stay on the direct path.
-    const transcriptPath = provider === 'claude' || provider === 'codex'
+    const transcriptPath = provider === 'claude' || provider === 'codex' || Boolean(session.jsonl_path)
       ? session.jsonl_path
       : null;
     const fullHistory = await sessionHistoryCache.getFullHistory({

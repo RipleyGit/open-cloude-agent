@@ -10,6 +10,7 @@ import { providerRegistry } from '@/modules/providers/provider.registry.js';
 import { providerModelsService } from '@/modules/providers/services/provider-models.service.js';
 import { providerAuthService } from '@/modules/providers/services/provider-auth.service.js';
 import { createPluginsService } from '@/modules/plugins/plugins.service.js';
+import { sessionsDb } from '@/modules/database/index.js';
 
 test('validateManifest: accepts agent plugin type and configuration', () => {
   const manifest = {
@@ -225,6 +226,75 @@ test('PluginAgentSessionSynchronizer & PluginAgentSessions: discovers nested tra
     const toolRes = history.messages.find((m) => m.kind === 'tool_result');
     assert.ok(toolRes);
     assert.equal(toolRes?.content, 'Dependencies installed successfully');
+
+    // Verify chunk files, transcript_full.jsonl, and steps are ignored
+    const chunkFile = path.join(sessDir, 'chunks', 'transcript', '00000001.jsonl');
+    fs.mkdirSync(path.dirname(chunkFile), { recursive: true });
+    fs.writeFileSync(chunkFile, rows[0] + '\n');
+    const syncChunk = await provider.sessionSynchronizer.synchronizeFile(chunkFile);
+    assert.equal(syncChunk, null, 'chunks must be ignored');
+
+    const fullFile = path.join(sessDir, 'transcript_full.jsonl');
+    fs.writeFileSync(fullFile, rows[0] + '\n');
+    const syncFull = await provider.sessionSynchronizer.synchronizeFile(fullFile);
+    assert.equal(syncFull, null, 'transcript_full.jsonl must be ignored');
+  } finally {
+    try {
+      fs.rmSync(tmpBrainDir, { recursive: true, force: true });
+    } catch {}
+  }
+});
+
+test('PluginAgentSessionSynchronizer: merges discovered transcript into existing unlinked app session', async () => {
+  const tmpBrainDir = path.join(os.tmpdir(), `test-brain-dedupe-${Date.now()}`);
+  const sessDir = path.join(tmpBrainDir, 'agy-uuid-999', '.system_generated', 'logs');
+  fs.mkdirSync(sessDir, { recursive: true });
+
+  const transcriptFile = path.join(sessDir, 'transcript.jsonl');
+  const rows = [
+    JSON.stringify({
+      step_index: 0,
+      source: 'USER_EXPLICIT',
+      type: 'USER_INPUT',
+      status: 'DONE',
+      created_at: new Date().toISOString(),
+      content: '<USER_REQUEST>\n用户提问内容\n</USER_REQUEST>',
+    }),
+  ];
+  fs.writeFileSync(transcriptFile, rows.join('\n') + '\n');
+
+  try {
+    const manifest = {
+      name: 'cloude-agent-agy',
+      displayName: 'Antigravity CLI',
+      type: 'agent',
+      agent: {
+        providerId: 'agy',
+        cliName: 'agy',
+        watchPaths: [tmpBrainDir],
+      },
+    };
+
+    const provider = new PluginAgentProvider(manifest as any, tmpBrainDir);
+
+    // Create an unlinked app session beforehand
+    const appSessionId = `app-sess-${Date.now()}`;
+    sessionsDb.createAppSession(appSessionId, 'agy', process.cwd(), '用户提问内容');
+
+    // Now synchronize the newly created transcript on disk
+    const resultSessionId = await provider.sessionSynchronizer.synchronizeFile(transcriptFile);
+    assert.equal(resultSessionId, appSessionId, 'must merge into the existing app session');
+
+    // Confirm only 1 session exists for this conversation
+    const row = sessionsDb.getSessionById(appSessionId);
+    assert.ok(row);
+    assert.equal(row?.provider_session_id, 'agy-uuid-999');
+    assert.equal(row?.jsonl_path, transcriptFile);
+
+    // Verify history can be fetched via appSessionId
+    const history = await provider.sessions.fetchHistory(appSessionId);
+    assert.equal(history.messages.length, 1);
+    assert.equal(history.messages[0].content, '用户提问内容');
   } finally {
     try {
       fs.rmSync(tmpBrainDir, { recursive: true, force: true });

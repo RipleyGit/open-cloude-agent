@@ -6,6 +6,7 @@ import { spawn } from 'cross-spawn';
 import { spawnSync } from 'node:child_process';
 
 import { sessionsDb } from '@/modules/database/index.js';
+import { getConnection } from '@/modules/database/connection.js';
 import { getPluginPort, isPluginRunning } from '@/modules/plugins/plugin-process.service.js';
 import type {
   IProvider,
@@ -38,7 +39,7 @@ import type {
   ProviderSkillRemoveInput,
   UpsertProviderMcpServerInput,
 } from '@/shared/types.js';
-import { AppError } from '@/shared/utils.js';
+import { AppError, createCompleteMessage, createNormalizedMessage, sliceTailPage } from '@/shared/utils.js';
 
 export interface PluginAgentManifest {
   name: string;
@@ -123,6 +124,7 @@ export class PluginAgentRuntime implements IProviderRuntime {
   private activeProcesses = new Map<string, any>();
 
   constructor(
+    private providerId: LLMProvider,
     private pluginName: string,
     private manifest: PluginAgentManifest,
   ) {}
@@ -133,8 +135,13 @@ export class PluginAgentRuntime implements IProviderRuntime {
     writer: ProviderRuntimeWriter,
     context: ProviderRuntimeContext,
   ): Promise<unknown> {
+    const appSessionId = (options.sessionId as string) || '';
+    const existingProviderSessionId = context.resolveProviderSessionId(appSessionId);
+    let capturedSessionId = existingProviderSessionId;
+    let sessionCreatedSent = false;
+    let completeSent = false;
+
     const port = getPluginPort(this.pluginName);
-    const sessionId = (options.sessionId as string) || `sess_${Date.now()}`;
     const model = (options.model as string) || this.manifest.agent?.defaultModel;
 
     // 1. If plugin background server subprocess is running, route turn via loopback HTTP
@@ -144,10 +151,10 @@ export class PluginAgentRuntime implements IProviderRuntime {
           message: command,
           prompt: command,
           model,
-          sessionId,
+          sessionId: existingProviderSessionId || appSessionId,
         });
 
-        const res = await new Promise<{ response?: string; error?: string }>((resolve, reject) => {
+        const res = await new Promise<any>((resolve, reject) => {
           const req = http.request(
             {
               hostname: '127.0.0.1',
@@ -163,12 +170,7 @@ export class PluginAgentRuntime implements IProviderRuntime {
             (response) => {
               let body = '';
               response.on('data', (chunk) => {
-                const text = chunk.toString();
-                body += text;
-                writer.send({
-                  type: 'text_delta',
-                  content: text,
-                });
+                body += chunk.toString();
               });
               response.on('end', () => {
                 try {
@@ -187,11 +189,49 @@ export class PluginAgentRuntime implements IProviderRuntime {
           req.end();
         });
 
-        const reply = res.response || (res as any).output || '';
-        writer.send({
-          type: 'text',
-          content: reply,
-        });
+        const reply = res.message?.content || res.response || (res as any).output || '';
+        const pluginSessionId = res.sessionId || res.conversationId;
+        if (pluginSessionId && !capturedSessionId) {
+          capturedSessionId = pluginSessionId;
+          if (capturedSessionId) {
+            writer.setSessionId?.(capturedSessionId);
+          }
+          if (!sessionCreatedSent) {
+            sessionCreatedSent = true;
+            writer.send(createNormalizedMessage({
+              kind: 'session_created',
+              newSessionId: capturedSessionId,
+              sessionId: appSessionId,
+              provider: this.providerId,
+            }));
+          }
+        }
+
+        if (reply) {
+          writer.send(createNormalizedMessage({
+            kind: 'stream_delta',
+            content: reply,
+            sessionId: appSessionId,
+            provider: this.providerId,
+          }));
+        }
+
+        writer.send(createNormalizedMessage({
+          kind: 'stream_end',
+          sessionId: appSessionId,
+          provider: this.providerId,
+        }));
+
+        if (!completeSent) {
+          completeSent = true;
+          writer.send(createCompleteMessage({
+            provider: this.providerId,
+            sessionId: appSessionId,
+            actualSessionId: capturedSessionId || appSessionId,
+            exitCode: 0,
+          }));
+        }
+
         return { success: true, response: reply };
       } catch (err: any) {
         console.warn(`[PluginAgentRuntime] HTTP run failed, falling back to CLI spawn: ${err.message}`);
@@ -215,8 +255,8 @@ export class PluginAgentRuntime implements IProviderRuntime {
       if (model) {
         args.push('--model', model);
       }
-      if (sessionId) {
-        args.push('--conversation', sessionId);
+      if (existingProviderSessionId) {
+        args.push('--conversation', existingProviderSessionId);
       }
 
       const proc = spawn(binary, args, {
@@ -224,40 +264,143 @@ export class PluginAgentRuntime implements IProviderRuntime {
         env: { ...process.env, ...(options.env as Record<string, string>) },
       });
 
-      this.activeProcesses.set(sessionId, proc);
+      const processKey = appSessionId || capturedSessionId || `sess_${Date.now()}`;
+      this.activeProcesses.set(processKey, proc);
 
       let stdoutAcc = '';
+      let stdoutLineBuffer = '';
+
+      const processLine = (trimmed: string) => {
+        if (!trimmed) return;
+        try {
+          const parsed = JSON.parse(trimmed);
+
+          if (parsed.event === 'init') {
+            const convId = parsed.conversation_id || parsed.init?.conversation_id;
+            if (convId && !capturedSessionId) {
+              capturedSessionId = convId;
+              if (capturedSessionId) {
+                writer.setSessionId?.(capturedSessionId);
+              }
+              if (!sessionCreatedSent) {
+                sessionCreatedSent = true;
+                writer.send(createNormalizedMessage({
+                  kind: 'session_created',
+                  newSessionId: capturedSessionId,
+                  sessionId: appSessionId,
+                  provider: this.providerId,
+                }));
+              }
+            }
+          } else if (parsed.event === 'step_update') {
+            const step = parsed.step_update;
+            const convId = step?.conversation_id;
+            if (convId && !capturedSessionId) {
+              capturedSessionId = convId;
+              if (capturedSessionId) {
+                writer.setSessionId?.(capturedSessionId);
+              }
+            }
+
+            if (step?.thinking_delta || step?.thinking) {
+              writer.send(createNormalizedMessage({
+                kind: 'thinking',
+                content: step.thinking_delta || step.thinking,
+                sessionId: appSessionId,
+                provider: this.providerId,
+              }));
+            }
+
+            if (step?.text_delta) {
+              writer.send(createNormalizedMessage({
+                kind: 'stream_delta',
+                content: step.text_delta,
+                sessionId: appSessionId,
+                provider: this.providerId,
+              }));
+            }
+          } else if (parsed.event === 'result') {
+            const res = parsed.result;
+            const convId = res?.conversation_id;
+            if (convId && !capturedSessionId) {
+              capturedSessionId = convId;
+              if (capturedSessionId) {
+                writer.setSessionId?.(capturedSessionId);
+              }
+            }
+
+            if (res?.response) {
+              writer.send(createNormalizedMessage({
+                kind: 'stream_delta',
+                content: res.response,
+                sessionId: appSessionId,
+                provider: this.providerId,
+              }));
+            }
+
+            writer.send(createNormalizedMessage({
+              kind: 'stream_end',
+              sessionId: appSessionId,
+              provider: this.providerId,
+            }));
+
+            if (!completeSent) {
+              completeSent = true;
+              writer.send(createCompleteMessage({
+                provider: this.providerId,
+                sessionId: appSessionId,
+                actualSessionId: capturedSessionId || appSessionId,
+                exitCode: res?.status === 'SUCCESS' ? 0 : 1,
+              }));
+            }
+          }
+        } catch {
+          writer.send(createNormalizedMessage({
+            kind: 'stream_delta',
+            content: trimmed + '\n',
+            sessionId: appSessionId,
+            provider: this.providerId,
+          }));
+        }
+      };
+
       proc.stdout?.on('data', (data) => {
         const str = data.toString();
         stdoutAcc += str;
-        const lines = str.split('\n');
+        stdoutLineBuffer += str;
+        const lines = stdoutLineBuffer.split('\n');
+        stdoutLineBuffer = lines.pop() || '';
         for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          try {
-            const parsed = JSON.parse(trimmed);
-            if (parsed.event === 'step_update' && parsed.step_update?.text_delta) {
-              writer.send({
-                type: 'text_delta',
-                content: parsed.step_update.text_delta,
-              });
-            } else if (parsed.event === 'result' && parsed.result?.response) {
-              writer.send({
-                type: 'text',
-                content: parsed.result.response,
-              });
-            }
-          } catch {
-            writer.send({
-              type: 'text_delta',
-              content: str,
-            });
-          }
+          processLine(line.trim());
         }
       });
 
+      proc.stderr?.on('data', (data) => {
+        console.warn(`[PluginAgentRuntime:stderr] ${data.toString()}`);
+      });
+
       proc.on('close', (code) => {
-        this.activeProcesses.delete(sessionId);
+        this.activeProcesses.delete(processKey);
+        if (stdoutLineBuffer.trim()) {
+          processLine(stdoutLineBuffer.trim());
+          stdoutLineBuffer = '';
+        }
+
+        if (!completeSent) {
+          completeSent = true;
+          writer.send(createNormalizedMessage({
+            kind: 'stream_end',
+            sessionId: appSessionId,
+            provider: this.providerId,
+          }));
+          writer.send(createCompleteMessage({
+            provider: this.providerId,
+            sessionId: appSessionId,
+            actualSessionId: capturedSessionId || appSessionId,
+            exitCode: code ?? 0,
+          }));
+        }
+
         if (code === 0) {
           resolve({ success: true, output: stdoutAcc });
         } else {
@@ -266,7 +409,16 @@ export class PluginAgentRuntime implements IProviderRuntime {
       });
 
       proc.on('error', (err) => {
-        this.activeProcesses.delete(sessionId);
+        this.activeProcesses.delete(processKey);
+        if (!completeSent) {
+          completeSent = true;
+          writer.send(createCompleteMessage({
+            provider: this.providerId,
+            sessionId: appSessionId,
+            actualSessionId: capturedSessionId || appSessionId,
+            exitCode: 1,
+          }));
+        }
         reject(err);
       });
     });
@@ -603,14 +755,32 @@ function findTranscriptsInWatchPath(watchRoot: string): DiscoveredTranscript[] {
     return results;
   }
 
+  const invalidIds = new Set([
+    'chunks',
+    'logs',
+    'tasks',
+    'steps',
+    'messages',
+    'media',
+    'scratch',
+    'transcript_full',
+    'transcript',
+    'session',
+    '.system_generated',
+    '.user_uploaded',
+  ]);
+
   for (const entry of entries) {
+    if (entry.name.startsWith('.') && entry.name !== '.system_generated') continue;
     const fullPath = path.join(watchRoot, entry.name);
 
     // Case 1: Direct JSONL file: e.g. <watchRoot>/<sessionId>.jsonl
     if (entry.isFile()) {
-      if (entry.name.endsWith('.jsonl') || entry.name.endsWith('.json')) {
+      if ((entry.name.endsWith('.jsonl') || entry.name.endsWith('.json')) && !entry.name.startsWith('.')) {
         const sessionId = path.basename(entry.name, path.extname(entry.name));
-        results.push({ sessionId, transcriptPath: fullPath });
+        if (!invalidIds.has(sessionId) && !/^\d{8}$/.test(sessionId)) {
+          results.push({ sessionId, transcriptPath: fullPath });
+        }
       }
       continue;
     }
@@ -618,6 +788,7 @@ function findTranscriptsInWatchPath(watchRoot: string): DiscoveredTranscript[] {
     // Case 2: Subdirectory: e.g. <watchRoot>/<sessionId>/
     if (entry.isDirectory()) {
       const sessionId = entry.name;
+      if (invalidIds.has(sessionId)) continue;
 
       // Antigravity CLI structure: <sessionId>/.system_generated/logs/transcript.jsonl
       const agyTranscript = path.join(fullPath, '.system_generated', 'logs', 'transcript.jsonl');
@@ -638,29 +809,6 @@ function findTranscriptsInWatchPath(watchRoot: string): DiscoveredTranscript[] {
       if (fs.existsSync(sessionJsonl)) {
         results.push({ sessionId, transcriptPath: sessionJsonl });
         continue;
-      }
-
-      // Check one level deeper for transcript files
-      try {
-        const subEntries = fs.readdirSync(fullPath, { withFileTypes: true });
-        for (const sub of subEntries) {
-          if (sub.isFile() && (sub.name.endsWith('.jsonl') || sub.name.endsWith('.json'))) {
-            const subId = path.basename(sub.name, path.extname(sub.name));
-            results.push({ sessionId: subId, transcriptPath: path.join(fullPath, sub.name) });
-          } else if (sub.isDirectory()) {
-            const nestedAgy = path.join(fullPath, sub.name, '.system_generated', 'logs', 'transcript.jsonl');
-            if (fs.existsSync(nestedAgy)) {
-              results.push({ sessionId: sub.name, transcriptPath: nestedAgy });
-            } else {
-              const nestedTranscript = path.join(fullPath, sub.name, 'transcript.jsonl');
-              if (fs.existsSync(nestedTranscript)) {
-                results.push({ sessionId: sub.name, transcriptPath: nestedTranscript });
-              }
-            }
-          }
-        }
-      } catch {
-        // Ignore read errors
       }
     }
   }
@@ -872,7 +1020,7 @@ export class PluginAgentSessions implements IProviderSessions {
     const limit = options?.limit ?? null;
     const offset = options?.offset ?? 0;
 
-    // 1. Check if the session is recorded in sessionsDb with a jsonl_path
+    // 1. Resolve canonical session and jsonl_path
     let jsonlPath: string | null = null;
     const dbSession =
       sessionsDb.getSessionById(sessionId) ??
@@ -882,13 +1030,19 @@ export class PluginAgentSessions implements IProviderSessions {
       jsonlPath = dbSession.jsonl_path;
     }
 
-    // 2. If not found in DB row, scan declared watchPaths for this sessionId
+    const providerSessionId = dbSession?.provider_session_id || sessionId;
+
+    // 2. If not found in DB row, scan declared watchPaths for providerSessionId or sessionId
     if (!jsonlPath && this.getWatchPaths) {
       const watchPaths = this.getWatchPaths();
       for (const wp of watchPaths) {
         const root = wp.rootPath;
         if (!fs.existsSync(root)) continue;
         const candidates = [
+          path.join(root, providerSessionId, '.system_generated', 'logs', 'transcript.jsonl'),
+          path.join(root, providerSessionId, 'transcript.jsonl'),
+          path.join(root, providerSessionId, 'session.jsonl'),
+          path.join(root, `${providerSessionId}.jsonl`),
           path.join(root, sessionId, '.system_generated', 'logs', 'transcript.jsonl'),
           path.join(root, sessionId, 'transcript.jsonl'),
           path.join(root, sessionId, 'session.jsonl'),
@@ -922,10 +1076,7 @@ export class PluginAgentSessions implements IProviderSessions {
         }
 
         const total = allMessages.length;
-        const start = Math.max(0, offset);
-        const end = limit !== null ? start + limit : total;
-        const page = allMessages.slice(start, end);
-        const hasMore = end < total;
+        const { page, hasMore } = sliceTailPage(allMessages, limit, offset);
 
         return {
           messages: page,
@@ -971,12 +1122,11 @@ export class PluginAgentSessions implements IProviderSessions {
         if (Array.isArray(res.session?.messages)) {
           const messages = res.session!.messages.flatMap((m) => this.normalizeMessage(m, sessionId));
           const total = messages.length;
-          const start = Math.max(0, offset);
-          const end = limit !== null ? start + limit : total;
+          const { page, hasMore } = sliceTailPage(messages, limit, offset);
           return {
-            messages: messages.slice(start, end),
+            messages: page,
             total,
-            hasMore: end < total,
+            hasMore,
             offset,
             limit,
           };
@@ -1105,24 +1255,88 @@ export class PluginAgentSessionSynchronizer implements IProviderSessionSynchroni
   async synchronizeFile(filePath: string): Promise<string | null> {
     if (!fs.existsSync(filePath)) return null;
     try {
-      const stat = fs.statSync(filePath);
-      let sessionId = path.basename(filePath, path.extname(filePath));
+      const norm = path.normalize(filePath);
+      const basename = path.basename(norm);
 
-      if (filePath.endsWith(path.join('.system_generated', 'logs', 'transcript.jsonl'))) {
-        const parts = filePath.split(path.sep);
+      // Skip intermediate files, chunks, media, steps, messages, transcript_full, tmp
+      if (
+        norm.includes(path.sep + 'chunks' + path.sep) ||
+        norm.includes(path.sep + 'steps' + path.sep) ||
+        norm.includes(path.sep + 'messages' + path.sep) ||
+        norm.includes(path.sep + 'media' + path.sep) ||
+        norm.includes(path.sep + 'scratch' + path.sep) ||
+        basename === 'transcript_full.jsonl' ||
+        basename.endsWith('.tmp') ||
+        basename.endsWith('.swp')
+      ) {
+        return null;
+      }
+
+      let sessionId: string | null = null;
+      if (norm.endsWith(path.join('.system_generated', 'logs', 'transcript.jsonl'))) {
+        const parts = norm.split(path.sep);
         const idx = parts.lastIndexOf('.system_generated');
         if (idx > 0) {
           sessionId = parts[idx - 1];
         }
-      } else if (path.basename(filePath) === 'transcript.jsonl' || path.basename(filePath) === 'session.jsonl') {
-        sessionId = path.basename(path.dirname(filePath));
+      } else if (basename === 'transcript.jsonl' || basename === 'session.jsonl') {
+        sessionId = path.basename(path.dirname(norm));
+      } else if (basename.endsWith('.jsonl') || basename.endsWith('.json')) {
+        sessionId = path.basename(norm, path.extname(norm));
       }
 
+      if (!sessionId) return null;
+
+      const invalidIds = new Set([
+        'chunks',
+        'logs',
+        'tasks',
+        'steps',
+        'messages',
+        'media',
+        'scratch',
+        'transcript_full',
+        'transcript',
+        'session',
+      ]);
+      if (invalidIds.has(sessionId) || /^\d{8}$/.test(sessionId)) {
+        return null;
+      }
+
+      const stat = fs.statSync(filePath);
       const meta = extractTranscriptMeta(filePath, sessionId);
       const projectPath = meta.projectPath || process.cwd();
       const title = meta.title || `Session ${sessionId.slice(0, 8)}`;
       const createdAt = meta.createdAt || stat.birthtime.toISOString();
       const updatedAt = meta.updatedAt || stat.mtime.toISOString();
+
+      // Check if an existing unlinked app session matches this conversation
+      try {
+        const db = getConnection();
+        if (db) {
+          const unlinked = db.prepare(
+            `SELECT session_id, custom_name, project_path, created_at FROM sessions
+             WHERE provider_session_id IS NULL AND provider = ?
+             ORDER BY created_at DESC LIMIT 5`
+          ).all(this.providerId) as any[];
+
+          for (const candidate of unlinked) {
+            const titleMatch = Boolean(candidate.custom_name && meta.title && candidate.custom_name === meta.title);
+            const timeDiffMs = Math.abs(new Date(candidate.created_at).getTime() - stat.mtime.getTime());
+            const timeMatch = timeDiffMs < 600_000 && candidate.project_path === projectPath;
+
+            if (titleMatch || timeMatch) {
+              sessionsDb.assignProviderSessionId(candidate.session_id, sessionId);
+              db.prepare(
+                `UPDATE sessions SET jsonl_path = ?, updated_at = COALESCE(?, CURRENT_TIMESTAMP) WHERE session_id = ?`
+              ).run(filePath, updatedAt, candidate.session_id);
+              return candidate.session_id;
+            }
+          }
+        }
+      } catch {
+        // Fall through to regular createSession
+      }
 
       const sid = sessionsDb.createSession(
         sessionId,
@@ -1182,7 +1396,7 @@ export class PluginAgentProvider implements IProvider {
     this.id = rawId as LLMProvider;
     this.displayName = manifest.displayName || manifest.agent?.displayName || manifest.name;
 
-    this.runtime = new PluginAgentRuntime(manifest.name, manifest);
+    this.runtime = new PluginAgentRuntime(this.id, manifest.name, manifest);
     this.models = new PluginAgentModels(manifest.name, manifest);
     this.auth = new PluginAgentAuth(this.id, manifest.name, manifest);
     this.sessionSynchronizer = new PluginAgentSessionSynchronizer(this.id, manifest.name, manifest);
