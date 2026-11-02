@@ -38,6 +38,7 @@ import { userRoutes } from './modules/user/index.js';
 import {
     getPluginPort,
     pluginsRoutes,
+    agentPluginsRoutes,
     registerEnabledAgentPlugins,
     startEnabledPluginServers,
     stopAllPlugins,
@@ -189,6 +190,9 @@ app.use('/api/user', authenticateToken, userRoutes);
 
 // Plugins API Routes (protected)
 app.use('/api/plugins', authenticateToken, pluginsRoutes);
+
+// Dedicated Agent Plugins API Routes (protected)
+app.use('/api/agent-plugins', authenticateToken, agentPluginsRoutes);
 
 // Browser MCP bridge API (local token protected)
 app.use('/api/browser-use-mcp', browserUseMcpRoutes);

@@ -1243,15 +1243,47 @@ export type Plugin = {
   description: string;
   author: string;
   icon: string;
-  type: 'react' | 'module';
-  slot: 'tab';
+  type: 'react' | 'module' | 'agent' | string;
+  slot: 'tab' | 'agent' | string;
   entry: string;
   server: string | null;
+  agent?: {
+    id?: string;
+    providerId?: string;
+    displayName?: string;
+    cliName?: string;
+    binary?: string;
+    watchPaths?: string[];
+    models?: Array<string | { value: string; label: string }>;
+    defaultModel?: string;
+  } | null;
   permissions: string[];
   enabled: boolean;
   serverRunning: boolean;
   dirName: string;
   repoUrl: string | null;
+};
+
+export type AgentPluginItem = {
+  name: string;
+  displayName: string;
+  version: string;
+  description: string;
+  author: string;
+  icon: string;
+  type: string;
+  providerId: string;
+  cliName: string;
+  defaultModel?: string;
+  models: Array<{ value: string; label: string; description?: string }>;
+  enabled: boolean;
+  repoUrl: string | null;
+  serverRunning: boolean;
+  cliStatus: {
+    installed: boolean;
+    version: string | null;
+    exitCode: number | null;
+  };
 };
 
 // ---------------------------

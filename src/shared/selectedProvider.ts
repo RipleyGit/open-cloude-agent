@@ -22,7 +22,10 @@ const DEFAULT_PROVIDER: LLMProvider = 'claude';
 
 export function readSelectedProvider(): LLMProvider {
   const stored = readUserPreference<string | null>('selectedProvider', null);
-  return PROVIDERS.includes(stored as LLMProvider) ? (stored as LLMProvider) : DEFAULT_PROVIDER;
+  if (stored && typeof stored === 'string' && stored.trim() !== '') {
+    return stored as LLMProvider;
+  }
+  return DEFAULT_PROVIDER;
 }
 
 export function writeSelectedProvider(provider: LLMProvider): void {

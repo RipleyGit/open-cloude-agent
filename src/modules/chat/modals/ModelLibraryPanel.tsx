@@ -94,8 +94,30 @@ export default function ModelLibraryPanel({
   // its built-in models, whose effort metadata depends on which upstream
   // providers this machine has connected (OpenCode). Empty for providers
   // without effort support, which hides the section entirely.
+  const allProviders = useMemo(() => {
+    const list = [...PROVIDERS];
+    const known = new Set(list.map((p) => p.id));
+    if (initialProvider && !known.has(initialProvider)) {
+      list.push({
+        id: initialProvider,
+        label: initialProvider === 'agy' ? 'Google AGY' : initialProvider.charAt(0).toUpperCase() + initialProvider.slice(1),
+      });
+      known.add(initialProvider);
+    }
+    for (const provId of Object.keys(providerModelCatalog)) {
+      if (!known.has(provId as LLMProvider)) {
+        list.push({
+          id: provId as LLMProvider,
+          label: provId === 'agy' ? 'Google AGY' : provId.charAt(0).toUpperCase() + provId.slice(1),
+        });
+        known.add(provId as LLMProvider);
+      }
+    }
+    return list;
+  }, [initialProvider, providerModelCatalog]);
+
   const providerEffortLevels = providerModelCatalog[selectedProvider]?.EFFORT_LEVELS ?? [];
-  const selectedProviderLabel = PROVIDERS.find((entry) => entry.id === selectedProvider)?.label;
+  const selectedProviderLabel = allProviders.find((entry) => entry.id === selectedProvider)?.label || selectedProvider;
   const customModelsOnly = providerModelCatalog[selectedProvider]?.CUSTOM_MODELS_ONLY === true;
   // The server only hides the built-ins while a custom model exists.
   const builtInModelsHidden = customModelsOnly && customModels.length > 0;
@@ -259,7 +281,7 @@ export default function ModelLibraryPanel({
       </div>
 
       <div className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-border/70 bg-muted/25 p-1">
-        {PROVIDERS.map((provider) => {
+        {allProviders.map((provider) => {
           const selected = provider.id === selectedProvider;
           return (
             <button

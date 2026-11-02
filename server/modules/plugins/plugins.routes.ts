@@ -21,7 +21,7 @@ export function createPluginsRouter(service: ReturnType<typeof createPluginsServ
       try { res.json(await operation(req)); } catch (error) { next(error); }
     };
 
-  router.get('/', respond(() => service.list()));
+  router.get('/', respond((req) => service.list(typeof req.query.type === 'string' ? req.query.type : undefined)));
   router.get('/:name/manifest', respond((req) => service.getManifest(routeParameter(req.params.name))));
   router.get('/:name/assets/*', async (req, res, next) => {
     try {

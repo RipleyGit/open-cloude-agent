@@ -535,8 +535,9 @@ export default function PluginSettingsTab() {
     ));
   };
 
-  const officialPlugins = plugins.filter(isOfficialPlugin);
-  const otherPlugins = plugins.filter((plugin) => !isOfficialPlugin(plugin));
+  const regularPlugins = plugins.filter((p) => p.type !== 'agent' && !(p as any).agent);
+  const officialPlugins = regularPlugins.filter(isOfficialPlugin);
+  const otherPlugins = regularPlugins.filter((plugin) => !isOfficialPlugin(plugin));
   const officialRecommendations = OFFICIAL_PLUGIN_RECOMMENDATIONS.filter(
     (recommendation) => !isRecommendationInstalled(recommendation),
   );

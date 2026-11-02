@@ -621,6 +621,28 @@ const parseCustomModelsOnlyPayload = (payload: unknown): boolean => {
 };
 
 router.get(
+  '/',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const list = providerRegistry.listProviders().map((p) => {
+      const isPlugin = (p as any).isPlugin ?? false;
+      const manifest = (p as any).manifest;
+      return {
+        id: p.id,
+        name: (p as any).displayName || (p as any).name || p.id,
+        cliName: (p as any).cliName || p.id,
+        isBuiltin: !isPlugin,
+        isPlugin,
+        pluginName: manifest?.name,
+        description: manifest?.description || '',
+        version: manifest?.version || '',
+        repoUrl: manifest?.repoUrl || null,
+      };
+    });
+    res.json(createApiSuccessResponse({ providers: list }));
+  }),
+);
+
+router.get(
   '/:provider/auth/status',
   asyncHandler(async (req: Request, res: Response) => {
     const provider = parseProvider(req.params.provider);

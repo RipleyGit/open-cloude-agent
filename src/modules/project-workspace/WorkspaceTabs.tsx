@@ -69,7 +69,7 @@ export default function WorkspaceTabs({
   ];
 
   const pluginTabs: PluginTab[] = plugins
-    .filter((p) => p.enabled)
+    .filter((p) => p.enabled && p.type !== 'agent' && !p.agent && p.slot === 'tab')
     .map((p) => ({
       kind: 'plugin',
       id: `plugin:${p.name}` as AppTab,

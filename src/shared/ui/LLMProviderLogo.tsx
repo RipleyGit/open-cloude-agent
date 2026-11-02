@@ -1,4 +1,6 @@
 import type { LLMProvider } from '@/shared/types';
+import { Bot } from 'lucide-react';
+import AgyLogo from '@/shared/ui/AgyLogo';
 import ClaudeLogo from '@/shared/ui/ClaudeLogo';
 import CodexLogo from '@/shared/ui/CodexLogo';
 import CursorLogo from '@/shared/ui/CursorLogo';
@@ -26,5 +28,13 @@ export function LLMProviderLogo({
     return <OpenCodeLogo className={className} />;
   }
 
-  return <ClaudeLogo className={className} />;
+  if (provider === 'agy' || (typeof provider === 'string' && provider.toLowerCase().includes('agy'))) {
+    return <AgyLogo className={className} />;
+  }
+
+  if (provider === 'claude') {
+    return <ClaudeLogo className={className} />;
+  }
+
+  return <Bot className={className} />;
 }

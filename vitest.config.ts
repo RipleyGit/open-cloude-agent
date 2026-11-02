@@ -20,6 +20,7 @@ export default defineConfig({
     // all, and the flag decides whether the app authenticates with a bearer
     // token. The tests that care stub it per case and assert both modes.
     env: {
+      NODE_ENV: 'test',
       VITE_IS_PLATFORM: 'false',
     },
     setupFiles: ['./vitest.setup.ts'],

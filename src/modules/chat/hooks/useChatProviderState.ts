@@ -369,7 +369,7 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     }
 
     if (Object.keys(reconciledModels).length > 0) {
-      setProviderModels((previous) => ({ ...previous, ...reconciledModels }));
+      setProviderModels((previous) => ({ ...previous, ...reconciledModels } as Record<LLMProvider, string>));
     }
   }, [providerModelCatalog, providerModels]);
 

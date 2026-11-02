@@ -7,6 +7,8 @@ type PluginManifest = Record<string, unknown> & {
   dirName?: string;
   enabled?: boolean;
   server?: unknown;
+  type?: string;
+  agent?: unknown;
 };
 
 type PluginConfig = Record<string, { enabled?: boolean; secrets?: Record<string, unknown> }>;
@@ -89,13 +91,17 @@ export function createPluginsService(dependencies: PluginDependencies) {
   }
 
   return {
-    list() {
-      return {
-        plugins: dependencies.scanPlugins().map((plugin) => ({
-          ...plugin,
-          serverRunning: plugin.server ? dependencies.isServerRunning(plugin.name) : false,
-        })),
-      };
+    list(filterType?: string) {
+      let plugins = dependencies.scanPlugins().map((plugin) => ({
+        ...plugin,
+        serverRunning: plugin.server ? dependencies.isServerRunning(plugin.name) : false,
+      }));
+      if (filterType === 'agent') {
+        plugins = plugins.filter((p) => p.type === 'agent' || Boolean((p as any).agent));
+      } else if (filterType === 'regular' || filterType === 'tab') {
+        plugins = plugins.filter((p) => p.type !== 'agent' && !(p as any).agent);
+      }
+      return { plugins };
     },
     getManifest(pluginName: string) {
       validatePluginName(pluginName);
