@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDownIcon } from 'lucide-react';
 
@@ -47,6 +47,12 @@ type ChatInterfaceProps = {
   newSessionTrigger?: number;
   onTaskClick?: (...args: unknown[]) => void;
   onShowAllTasks?: (() => void) | null;
+  /**
+   * Rendered between the message list and the composer. The project-workspace
+   * module injects its quick-settings drawer here so the panel docks below the
+   * chat instead of on the right edge; chat itself never imports that module.
+   */
+  renderBetweenMessagesAndComposer?: () => ReactNode;
 };
 
 /**
@@ -70,6 +76,7 @@ function ChatInterface({
   externalMessageUpdate,
   newSessionTrigger,
   onShowAllTasks,
+  renderBetweenMessagesAndComposer,
 }: ChatInterfaceProps) {
   const { tasksEnabled, isTaskMasterInstalled } = useTasksSettings();
   const { subscribe } = useWebSocket();
@@ -517,6 +524,8 @@ function ChatInterface({
             />
           </TranscriptSessionContext.Provider>
         </MarkdownWorkspaceContext.Provider>
+
+        {renderBetweenMessagesAndComposer?.()}
 
         <div className="relative flex-shrink-0">
           {isUserScrolledUp && chatMessages.length > 0 && (

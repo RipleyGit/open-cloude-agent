@@ -3,7 +3,9 @@ import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } fro
 
 import type { QuickSettingsHandleStyle } from '@/shared/types';
 
-const HANDLE_POSITION_STORAGE_KEY = 'quickSettingsHandlePosition';
+// Bottom-docked handle: a new key so a stored vertical `{ y }` position from
+// the right-docked panel is never misread as a horizontal `{ x }`.
+const HANDLE_POSITION_STORAGE_KEY = 'quickSettingsHandlePositionBottom';
 
 const DEFAULT_HANDLE_POSITION = 50;
 const HANDLE_POSITION_MIN = 10;
@@ -16,7 +18,7 @@ type UseQuickSettingsDragProps = {
 
 type StartDragEvent = ReactMouseEvent<HTMLButtonElement> | ReactTouchEvent<HTMLButtonElement>;
 type MoveDragEvent = MouseEvent | TouchEvent;
-type EventWithClientY = StartDragEvent | MoveDragEvent;
+type EventWithClientX = StartDragEvent | MoveDragEvent;
 
 const clampPosition = (value: number): number => (
   Math.max(HANDLE_POSITION_MIN, Math.min(HANDLE_POSITION_MAX, value))
@@ -33,9 +35,9 @@ const readHandlePosition = (): number => {
   }
 
   try {
-    const parsed = JSON.parse(saved) as { y?: unknown };
-    if (typeof parsed.y === 'number' && Number.isFinite(parsed.y)) {
-      return clampPosition(parsed.y);
+    const parsed = JSON.parse(saved) as { x?: unknown };
+    if (typeof parsed.x === 'number' && Number.isFinite(parsed.x)) {
+      return clampPosition(parsed.x);
     }
   } catch {
     localStorage.removeItem(HANDLE_POSITION_STORAGE_KEY);
@@ -47,22 +49,26 @@ const readHandlePosition = (): number => {
 
 const isTouchEvent = (event: { type: string }): boolean => event.type.includes('touch');
 
-const getClientY = (event: EventWithClientY): number | null => {
+const getClientX = (event: EventWithClientX): number | null => {
   if ('touches' in event) {
-    return event.touches[0]?.clientY ?? null;
+    return event.touches[0]?.clientX ?? null;
   }
 
-  return 'clientY' in event && typeof event.clientY === 'number'
-    ? event.clientY
+  return 'clientX' in event && typeof event.clientX === 'number'
+    ? event.clientX
     : null;
 };
 
 export function useQuickSettingsDrag({ isMobile }: UseQuickSettingsDragProps) {
+  // The bottom panel's handle slides horizontally along the panel edge, so the
+  // position is a horizontal percentage. `isMobile` is retained to keep the
+  // hook's signature stable for its existing caller.
+  void isMobile;
   const [handlePosition, setHandlePosition] = useState<number>(readHandlePosition);
   const [isPointerDown, setIsPointerDown] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const dragStartYRef = useRef<number | null>(null);
+  const dragStartXRef = useRef<number | null>(null);
   const dragStartPositionRef = useRef(DEFAULT_HANDLE_POSITION);
   const didDragRef = useRef(false);
   const suppressNextClickRef = useRef(false);
@@ -100,13 +106,13 @@ export function useQuickSettingsDrag({ isMobile }: UseQuickSettingsDragProps) {
   }, []);
 
   const endDrag = useCallback(() => {
-    if (!isPointerDown && dragStartYRef.current === null) {
+    if (!isPointerDown && dragStartXRef.current === null) {
       return;
     }
 
     suppressNextClickRef.current = didDragRef.current;
     didDragRef.current = false;
-    dragStartYRef.current = null;
+    dragStartXRef.current = null;
     setIsPointerDown(false);
     setIsDragging(false);
     clearBodyDragStyles();
@@ -114,16 +120,16 @@ export function useQuickSettingsDrag({ isMobile }: UseQuickSettingsDragProps) {
 
   const handleMove = useCallback(
     (event: MoveDragEvent) => {
-      if (!isPointerDown || dragStartYRef.current === null) {
+      if (!isPointerDown || dragStartXRef.current === null) {
         return;
       }
 
-      const clientY = getClientY(event);
-      if (clientY === null) {
+      const clientX = getClientX(event);
+      if (clientX === null) {
         return;
       }
 
-      const rawDelta = clientY - dragStartYRef.current;
+      const rawDelta = clientX - dragStartXRef.current;
       const movedPastThreshold = Math.abs(rawDelta) > DRAG_THRESHOLD_PX;
 
       if (!didDragRef.current && movedPastThreshold) {
@@ -140,23 +146,22 @@ export function useQuickSettingsDrag({ isMobile }: UseQuickSettingsDragProps) {
         event.preventDefault();
       }
 
-      const viewportHeight = Math.max(window.innerHeight, 1);
-      const normalizedDelta = (rawDelta / viewportHeight) * 100;
-      const positionDelta = isMobile ? -normalizedDelta : normalizedDelta;
-      setHandlePosition(clampPosition(dragStartPositionRef.current + positionDelta));
+      const viewportWidth = Math.max(window.innerWidth, 1);
+      const normalizedDelta = (rawDelta / viewportWidth) * 100;
+      setHandlePosition(clampPosition(dragStartPositionRef.current + normalizedDelta));
     },
-    [applyBodyDragStyles, isMobile, isPointerDown],
+    [applyBodyDragStyles, isPointerDown],
   );
 
   const startDrag = useCallback((event: StartDragEvent) => {
     event.stopPropagation();
 
-    const clientY = getClientY(event);
-    if (clientY === null) {
+    const clientX = getClientX(event);
+    if (clientX === null) {
       return;
     }
 
-    dragStartYRef.current = clientY;
+    dragStartXRef.current = clientX;
     dragStartPositionRef.current = handlePosition;
     didDragRef.current = false;
     setIsDragging(false);
@@ -167,7 +172,7 @@ export function useQuickSettingsDrag({ isMobile }: UseQuickSettingsDragProps) {
   useEffect(() => {
     localStorage.setItem(
       HANDLE_POSITION_STORAGE_KEY,
-      JSON.stringify({ y: handlePosition }),
+      JSON.stringify({ x: handlePosition }),
     );
   }, [handlePosition]);
 
@@ -217,18 +222,10 @@ export function useQuickSettingsDrag({ isMobile }: UseQuickSettingsDragProps) {
     return true;
   }, []);
 
-  const handleStyle = useMemo<QuickSettingsHandleStyle>(() => {
-    if (!isMobile || typeof window === 'undefined') {
-      return {
-        top: `${handlePosition}%`,
-        transform: 'translateY(-50%)',
-      };
-    }
-
-    return {
-      bottom: `${(window.innerHeight * handlePosition) / 100}px`,
-    };
-  }, [handlePosition, isMobile]);
+  const handleStyle = useMemo<QuickSettingsHandleStyle>(() => ({
+    left: `${handlePosition}%`,
+    transform: 'translateX(-50%)',
+  }), [handlePosition]);
 
   return {
     isDragging,

@@ -89,9 +89,17 @@ export const projectsDb = {
     getProjectPaths(): ProjectRepositoryRow[] {
         const db = getConnection();
         return db.prepare(`
-            SELECT project_id, project_path, custom_project_name, isStarred, isArchived
-            FROM projects
-            WHERE isArchived = 0
+            SELECT
+                p.project_id,
+                p.project_path,
+                p.custom_project_name,
+                p.isStarred,
+                p.isArchived,
+                MAX(s.updated_at) AS last_activity_at
+            FROM projects p
+            LEFT JOIN sessions s ON s.project_path = p.project_path AND s.isArchived = 0
+            WHERE p.isArchived = 0
+            GROUP BY p.project_id
         `).all() as ProjectRepositoryRow[];
     },
 

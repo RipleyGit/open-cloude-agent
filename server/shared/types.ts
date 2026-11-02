@@ -1007,6 +1007,8 @@ export type ProjectRepositoryRow = {
   custom_project_name: string | null;
   isStarred: number;
   isArchived: number;
+  /** Latest `sessions.updated_at` for this project path; NULL when it has no sessions. */
+  last_activity_at?: string | null;
 };
 
 /**

@@ -118,6 +118,40 @@ const getProjectLastActivity = (project: Project): Date => {
   }, new Date(0));
 };
 
+/**
+ * Path label shown beside a project's display name so two workspaces that
+ * share a name (same repo basename in different parent folders, e.g.
+ * `srdcloud.git/...` vs `srdcloud_git/...`) can be told apart.
+ *
+ * Keeps the basename fully visible and truncates only the parent segment from
+ * the front, so the distinguishing tail of the parent survives. Returns null
+ * when there is no usable path (a freshly created project with no transcript
+ * yet still has `fullPath`, so a missing label means something is wrong).
+ */
+export const getProjectPathLabel = (project: Project): string | null => {
+  const rawPath = project.path || project.fullPath || '';
+  const fullPath = rawPath.replace(/[/\\]+$/, '');
+  if (!fullPath) {
+    return null;
+  }
+
+  const segments = fullPath.split(/[/\\]+/).filter(Boolean);
+  if (segments.length === 0) {
+    return null;
+  }
+
+  const basename = segments[segments.length - 1] ?? '';
+  const parentSegment = segments.length > 1 ? segments[segments.length - 2] : '';
+
+  const MAX_PARENT_LENGTH = 24;
+  const shownParent =
+    parentSegment.length > MAX_PARENT_LENGTH
+      ? `...${parentSegment.slice(-(MAX_PARENT_LENGTH - 3))}`
+      : parentSegment;
+
+  return shownParent ? `${shownParent}/${basename}` : basename;
+};
+
 export const sortProjects = (
   projects: Project[],
   projectSortOrder: ProjectSortOrder,

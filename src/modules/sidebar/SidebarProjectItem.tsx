@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next';
 import { Button } from '@/shared/ui';
 import { cn } from '@/shared/utils';
 import type { LLMProvider, MCPServerStatus, Project, ProjectSession, SessionWithProvider, SidebarSessionSelection } from '@/shared/types';
-import { getTaskIndicatorStatus } from '@/modules/sidebar/utils/sidebarProjectFormatting';
+import { getProjectPathLabel, getTaskIndicatorStatus } from '@/modules/sidebar/utils/sidebarProjectFormatting';
 import TaskIndicator from '@/modules/sidebar/TaskIndicator';
 import SidebarProjectSessions from '@/modules/sidebar/SidebarProjectSessions';
 import { useCompactSidebar } from '@/modules/sidebar/hooks/useCompactSidebar';
@@ -138,6 +138,7 @@ function SidebarProjectItem({
   }, [isEditing]);
 
   const isCompact = useCompactSidebar();
+  const pathLabel = getProjectPathLabel(project);
 
   const toggleProject = () => onToggleProject(project.projectId);
   const toggleStarProject = () => onToggleStarProject(project.projectId);
@@ -235,7 +236,15 @@ function SidebarProjectItem({
                           />
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{sessionCountLabel}</p>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {sessionCountLabel}
+                        {pathLabel && (
+                          <span className="ml-1 opacity-60" title={project.fullPath}>
+                            {' - '}
+                            {pathLabel}
+                          </span>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -371,10 +380,10 @@ function SidebarProjectItem({
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {sessionCountDisplay}
-                    {project.fullPath !== project.displayName && (
+                    {pathLabel && pathLabel !== project.displayName && (
                       <span className="ml-1 opacity-60" title={project.fullPath}>
                         {' - '}
-                        {project.fullPath.length > 25 ? `...${project.fullPath.slice(-22)}` : project.fullPath}
+                        {pathLabel}
                       </span>
                     )}
                   </div>

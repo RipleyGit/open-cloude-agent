@@ -28,7 +28,7 @@ type QuickSettingsPanelViewProps = {
   onInsertCommand?: (command: SlashCommand) => void;
 };
 
-/** Exported as QuickSettingsPanel and rendered by the project-workspace module as its quick settings drawer — an overlay by default, docked into the workspace row when pinned. */
+/** Exported as QuickSettingsPanel and rendered by the project-workspace module as its quick settings drawer — an overlay by default, docked above the chat composer when pinned. */
 function QuickSettingsPanelView({ selectedProject, onInsertCommand }: QuickSettingsPanelViewProps) {
   const { isMobile } = useDeviceSettings({ trackPWA: false });
   const canPin = !isMobile;
@@ -164,27 +164,37 @@ function QuickSettingsPanelView({ selectedProject, onInsertCommand }: QuickSetti
     </div>
   );
 
+  const dockedOpen = isPinned && isOpen;
+  const handle = (
+    <QuickSettingsHandle
+      isOpen={isOpen}
+      isDragging={isDragging}
+      placement={dockedOpen ? 'docked' : 'overlay'}
+      style={handleStyle}
+      onClick={handleToggleFromHandle}
+      onMouseDown={startDrag}
+      onTouchStart={startDrag}
+    />
+  );
+
   return (
     <>
-      <QuickSettingsHandle
-        isOpen={isOpen}
-        isDragging={isDragging}
-        style={handleStyle}
-        onClick={handleToggleFromHandle}
-        onMouseDown={startDrag}
-        onTouchStart={startDrag}
-      />
+      {/* The handle is always rendered: absolute against the docked row's top
+          edge when that row exists, fixed to the viewport bottom otherwise
+          (overlay open/closed, or docked-but-collapsed with no row to host it). */}
+      {handle}
 
-      {/* Docked: a layout column while open, gone while collapsed via the handle (the pin is kept). */}
+      {/* Docked: an in-flow row at the bottom of the chat column while open,
+          gone while collapsed via the handle (the pin is kept). */}
       {isPinned ? (
         isOpen && (
-          <div className="relative h-full w-64 flex-shrink-0 border-l border-border bg-background">
+          <div className="relative h-64 w-full flex-shrink-0 border-t border-border bg-background">
             {panelBody}
           </div>
         )
       ) : (
         <div
-          className={`fixed right-0 top-0 z-[9999] h-full w-64 transform border-l border-border bg-background shadow-xl transition-transform duration-150 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} ${isMobile ? 'h-screen' : ''}`}
+          className={`fixed bottom-0 left-0 right-0 z-[9999] h-64 w-full transform border-t border-border bg-background shadow-xl transition-transform duration-150 ease-out ${isOpen ? 'translate-y-0' : 'translate-y-full'} ${isMobile ? 'h-72' : ''}`}
         >
           {panelBody}
         </div>

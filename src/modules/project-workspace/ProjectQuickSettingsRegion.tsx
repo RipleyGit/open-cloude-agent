@@ -5,8 +5,8 @@ import { QuickSettingsPanel } from '@/modules/quick-settings-panel';
 import { useProjectCommandState } from '@/modules/project-workspace/context/ProjectsStateContext';
 import type { SlashCommand } from '@/shared/types';
 
-/** Rendered by ProjectWorkspaceShell to bind this module's project state and the chat composer to the quick-settings-panel module. */
-function ProjectQuickSettingsRegion() {
+/** Rendered by WorkspaceMain between the chat message list and composer to bind the project's command state and the chat composer to the quick-settings-panel module. */
+export function ProjectQuickSettingsRegion() {
   const { selectedProject, setActiveTab } = useProjectCommandState();
   const paletteOps = usePaletteOps();
 

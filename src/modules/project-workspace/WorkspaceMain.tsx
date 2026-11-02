@@ -12,6 +12,7 @@ import type { AppTab, DirectoryRevealRequest, Project, ProjectSession, SessionEs
 import { useUiPreferences } from '@/shared/context/UiPreferencesContext';
 import { useFileOpenResolver } from '@/modules/project-workspace/hooks/useFileOpenResolver';
 import { EditorSidebar, useEditorSidebar } from '@/modules/code-editor';
+import { ProjectQuickSettingsRegion } from '@/modules/project-workspace/ProjectQuickSettingsRegion';
 import WorkspaceHeader from '@/modules/project-workspace/WorkspaceHeader';
 import WorkspaceStateView from '@/modules/project-workspace/WorkspaceStateView';
 import WorkspaceErrorBoundary from '@/modules/project-workspace/WorkspaceErrorBoundary';
@@ -88,6 +89,10 @@ function WorkspaceMain({
     selectedProject,
     isMobile,
   });
+
+  // Stable so React.memo(ChatInterface) can bail out: recreating the quick
+  // settings region on every render would re-render the whole chat tree.
+  const renderQuickSettings = useCallback(() => <ProjectQuickSettingsRegion />, []);
 
   // Resolves bare/partial file references (e.g. links inside chat messages) to
   // real project files before opening them in the in-app editor.
@@ -175,6 +180,7 @@ function WorkspaceMain({
                 externalMessageUpdate={externalMessageUpdate}
                 newSessionTrigger={newSessionTrigger}
                 onShowAllTasks={tasksEnabled ? showAllTasks : null}
+                renderBetweenMessagesAndComposer={renderQuickSettings}
               />
             </WorkspaceErrorBoundary>
           </div>
