@@ -167,6 +167,7 @@ export default function AgentsSettingsTab({
       const data = await res.json();
       if (res.ok && data.success) {
         await loadAgentPlugins();
+        window.dispatchEvent(new CustomEvent('projects:refresh'));
         return { success: true, providerId: data.data?.providerId };
       }
       return { success: false, error: readApiErrorMessage(data) ?? '安装失败' };
@@ -181,6 +182,7 @@ export default function AgentsSettingsTab({
       const data = await res.json();
       if (res.ok && data.success) {
         await loadAgentPlugins();
+        window.dispatchEvent(new CustomEvent('projects:refresh'));
         return { success: true };
       }
       return { success: false, error: readApiErrorMessage(data) ?? '更新失败' };
@@ -195,6 +197,7 @@ export default function AgentsSettingsTab({
       const data = await res.json();
       if (res.ok && data.success) {
         await loadAgentPlugins();
+        window.dispatchEvent(new CustomEvent('projects:refresh'));
         return { success: true };
       }
       return { success: false, error: readApiErrorMessage(data) ?? '切换失败' };
@@ -210,6 +213,7 @@ export default function AgentsSettingsTab({
       if (res.ok && data.success) {
         await loadAgentPlugins();
         setSelectedAgent('claude');
+        window.dispatchEvent(new CustomEvent('projects:refresh'));
         return { success: true };
       }
       return { success: false, error: readApiErrorMessage(data) ?? '卸载失败' };

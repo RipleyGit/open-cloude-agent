@@ -478,45 +478,468 @@ export class PluginAgentAuth implements IProviderAuth {
   }
 }
 
+function tryParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+interface DiscoveredTranscript {
+  sessionId: string;
+  transcriptPath: string;
+}
+
+function extractTranscriptMeta(
+  filePath: string,
+  fallbackId: string,
+): {
+  title?: string;
+  projectPath?: string;
+  createdAt?: string;
+  updatedAt?: string;
+} {
+  try {
+    const stat = fs.statSync(filePath);
+    const result: { title?: string; projectPath?: string; createdAt?: string; updatedAt?: string } = {
+      createdAt: stat.birthtime.toISOString(),
+      updatedAt: stat.mtime.toISOString(),
+    };
+
+    let fd: number | null = null;
+    let chunk = '';
+    try {
+      fd = fs.openSync(filePath, 'r');
+      const buffer = Buffer.alloc(32768);
+      const bytesRead = fs.readSync(fd, buffer, 0, 32768, 0);
+      chunk = buffer.toString('utf8', 0, bytesRead);
+    } finally {
+      if (fd !== null) {
+        try { fs.closeSync(fd); } catch { /* ignore */ }
+      }
+    }
+
+    const lines = chunk.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const parsed = tryParseJson(trimmed) as any;
+      if (!parsed || typeof parsed !== 'object') continue;
+
+      // 1. Antigravity CLI format: type === 'USER_INPUT'
+      if (parsed.type === 'USER_INPUT' && parsed.content) {
+        const raw = String(parsed.content);
+        const userReqMatch = raw.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/i);
+        const rawText = userReqMatch ? userReqMatch[1] : raw;
+        const cleanText = rawText.replace(/<[^>]+>/g, '').trim().replace(/\s+/g, ' ');
+        if (cleanText && !result.title) {
+          result.title = cleanText.length > 60 ? cleanText.slice(0, 60) + '...' : cleanText;
+        }
+        if (parsed.created_at) {
+          result.createdAt = new Date(parsed.created_at).toISOString();
+        }
+      }
+
+      // Check for workspace / cwd in content or payload
+      if (parsed.content && typeof parsed.content === 'string') {
+        const wsMatch = parsed.content.match(/(?:Active Workspaces:|Command Working Directory:)\s*([^\r\n<]+)/i);
+        if (wsMatch && wsMatch[1]) {
+          const candidate = wsMatch[1].trim().replace(/^[-*]\s*/, '');
+          if (fs.existsSync(candidate)) {
+            result.projectPath = candidate;
+          }
+        }
+      }
+
+      // 2. Claude format: type === 'user' or message.role === 'user'
+      if (parsed.message?.role === 'user' || parsed.type === 'user' || parsed.role === 'user') {
+        const content = parsed.message?.content || parsed.content;
+        const text =
+          typeof content === 'string'
+            ? content
+            : Array.isArray(content)
+              ? content.map((c: any) => c.text || '').join(' ')
+              : '';
+        const cleanText = text.trim().replace(/\s+/g, ' ');
+        if (cleanText && !result.title) {
+          result.title = cleanText.length > 60 ? cleanText.slice(0, 60) + '...' : cleanText;
+        }
+      }
+
+      // 3. Codex format: payload.cwd / payload.id / thread_name
+      if (parsed.payload) {
+        if (parsed.payload.cwd && fs.existsSync(parsed.payload.cwd)) {
+          result.projectPath = parsed.payload.cwd;
+        }
+        if (parsed.payload.thread_name && !result.title) {
+          result.title = parsed.payload.thread_name;
+        }
+      }
+
+      if (parsed.cwd && fs.existsSync(parsed.cwd)) {
+        result.projectPath = parsed.cwd;
+      }
+
+      if (result.title && result.projectPath) {
+        break;
+      }
+    }
+
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function findTranscriptsInWatchPath(watchRoot: string): DiscoveredTranscript[] {
+  const results: DiscoveredTranscript[] = [];
+  if (!fs.existsSync(watchRoot)) return results;
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(watchRoot, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+
+  for (const entry of entries) {
+    const fullPath = path.join(watchRoot, entry.name);
+
+    // Case 1: Direct JSONL file: e.g. <watchRoot>/<sessionId>.jsonl
+    if (entry.isFile()) {
+      if (entry.name.endsWith('.jsonl') || entry.name.endsWith('.json')) {
+        const sessionId = path.basename(entry.name, path.extname(entry.name));
+        results.push({ sessionId, transcriptPath: fullPath });
+      }
+      continue;
+    }
+
+    // Case 2: Subdirectory: e.g. <watchRoot>/<sessionId>/
+    if (entry.isDirectory()) {
+      const sessionId = entry.name;
+
+      // Antigravity CLI structure: <sessionId>/.system_generated/logs/transcript.jsonl
+      const agyTranscript = path.join(fullPath, '.system_generated', 'logs', 'transcript.jsonl');
+      if (fs.existsSync(agyTranscript)) {
+        results.push({ sessionId, transcriptPath: agyTranscript });
+        continue;
+      }
+
+      // Standard nested transcript: <sessionId>/transcript.jsonl
+      const standardTranscript = path.join(fullPath, 'transcript.jsonl');
+      if (fs.existsSync(standardTranscript)) {
+        results.push({ sessionId, transcriptPath: standardTranscript });
+        continue;
+      }
+
+      // <sessionId>/session.jsonl
+      const sessionJsonl = path.join(fullPath, 'session.jsonl');
+      if (fs.existsSync(sessionJsonl)) {
+        results.push({ sessionId, transcriptPath: sessionJsonl });
+        continue;
+      }
+
+      // Check one level deeper for transcript files
+      try {
+        const subEntries = fs.readdirSync(fullPath, { withFileTypes: true });
+        for (const sub of subEntries) {
+          if (sub.isFile() && (sub.name.endsWith('.jsonl') || sub.name.endsWith('.json'))) {
+            const subId = path.basename(sub.name, path.extname(sub.name));
+            results.push({ sessionId: subId, transcriptPath: path.join(fullPath, sub.name) });
+          } else if (sub.isDirectory()) {
+            const nestedAgy = path.join(fullPath, sub.name, '.system_generated', 'logs', 'transcript.jsonl');
+            if (fs.existsSync(nestedAgy)) {
+              results.push({ sessionId: sub.name, transcriptPath: nestedAgy });
+            } else {
+              const nestedTranscript = path.join(fullPath, sub.name, 'transcript.jsonl');
+              if (fs.existsSync(nestedTranscript)) {
+                results.push({ sessionId: sub.name, transcriptPath: nestedTranscript });
+              }
+            }
+          }
+        }
+      } catch {
+        // Ignore read errors
+      }
+    }
+  }
+
+  return results;
+}
+
 export class PluginAgentSessions implements IProviderSessions {
   constructor(
     private providerId: LLMProvider,
     private pluginName: string,
+    private getWatchPaths?: () => Array<{ rootPath: string }>,
   ) {}
 
   normalizeMessage(raw: unknown, sessionId: string | null): NormalizedMessage[] {
     const ts = new Date().toISOString();
     const sid = sessionId || '';
 
-    if (raw && typeof raw === 'object' && 'role' in raw && 'content' in raw) {
-      const msg = raw as any;
+    if (!raw || typeof raw !== 'object') {
       return [
         {
-          id: msg.id || `msg-${Date.now()}`,
+          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           sessionId: sid,
           provider: this.providerId,
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-          timestamp: msg.timestamp || ts,
+          role: 'assistant',
+          content: typeof raw === 'string' ? raw : String(raw),
+          text: typeof raw === 'string' ? raw : String(raw),
+          timestamp: ts,
           kind: 'text',
         },
       ];
     }
 
+    const item = raw as any;
+    const msgTs = item.created_at || item.timestamp || ts;
+    const baseId = item.id || (item.step_index !== undefined ? `step-${item.step_index}` : `msg-${Date.now()}`);
+
+    // Case 1: Antigravity / AGY step format
+    if (item.type === 'USER_INPUT' || item.source === 'USER_EXPLICIT') {
+      const rawContent = String(item.content || '');
+      const userReqMatch = rawContent.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/i);
+      const cleanContent = userReqMatch ? userReqMatch[1].trim() : rawContent;
+      return [
+        {
+          id: `${baseId}-user`,
+          sessionId: sid,
+          provider: this.providerId,
+          role: 'user',
+          kind: 'text',
+          content: cleanContent,
+          text: cleanContent,
+          timestamp: msgTs,
+        },
+      ];
+    }
+
+    if (item.type === 'PLANNER_RESPONSE' || (item.source === 'MODEL' && (item.thinking || item.tool_calls))) {
+      const messages: NormalizedMessage[] = [];
+
+      // Thinking content
+      if (item.thinking && typeof item.thinking === 'string' && item.thinking.trim()) {
+        messages.push({
+          id: `${baseId}-thinking`,
+          sessionId: sid,
+          provider: this.providerId,
+          role: 'assistant',
+          kind: 'thinking',
+          content: item.thinking.trim(),
+          text: item.thinking.trim(),
+          timestamp: msgTs,
+        });
+      }
+
+      // Tool calls
+      if (Array.isArray(item.tool_calls)) {
+        for (let i = 0; i < item.tool_calls.length; i++) {
+          const tool = item.tool_calls[i];
+          const toolName = tool.name || tool.function?.name || 'tool';
+          const toolArgs = tool.args || tool.function?.arguments || {};
+          messages.push({
+            id: `${baseId}-tool-${i}`,
+            sessionId: sid,
+            provider: this.providerId,
+            role: 'assistant',
+            kind: 'tool_use',
+            toolName,
+            toolInput: typeof toolArgs === 'string' ? (tryParseJson(toolArgs) ?? toolArgs) : toolArgs,
+            toolId: tool.id || `${baseId}-call-${i}`,
+            timestamp: msgTs,
+          });
+        }
+      }
+
+      // Assistant prose content
+      if (item.content && typeof item.content === 'string' && item.content.trim()) {
+        messages.push({
+          id: `${baseId}-text`,
+          sessionId: sid,
+          provider: this.providerId,
+          role: 'assistant',
+          kind: 'text',
+          content: item.content,
+          text: item.content,
+          timestamp: msgTs,
+        });
+      }
+
+      if (messages.length > 0) return messages;
+    }
+
+    if (item.type === 'GENERIC' && item.source === 'MODEL') {
+      // Tool output / execution result
+      return [
+        {
+          id: `${baseId}-result`,
+          sessionId: sid,
+          provider: this.providerId,
+          role: 'user',
+          kind: 'tool_result',
+          content: typeof item.content === 'string' ? item.content : JSON.stringify(item.content),
+          toolResult: {
+            content: typeof item.content === 'string' ? item.content : JSON.stringify(item.content),
+            isError: item.status === 'ERROR',
+          },
+          timestamp: msgTs,
+        },
+      ];
+    }
+
+    // Case 2: Standard { role, content } or Claude/Codex message structure
+    const role = item.role || item.message?.role;
+    const content = item.content || item.message?.content;
+    if (role && content !== undefined) {
+      if (typeof content === 'string') {
+        return [
+          {
+            id: baseId,
+            sessionId: sid,
+            provider: this.providerId,
+            role: role === 'user' ? 'user' : 'assistant',
+            kind: item.kind || 'text',
+            content,
+            text: content,
+            timestamp: msgTs,
+          },
+        ];
+      }
+      if (Array.isArray(content)) {
+        const msgs: NormalizedMessage[] = [];
+        for (let i = 0; i < content.length; i++) {
+          const part = content[i];
+          if (part.type === 'text') {
+            msgs.push({
+              id: `${baseId}-${i}`,
+              sessionId: sid,
+              provider: this.providerId,
+              role: role === 'user' ? 'user' : 'assistant',
+              kind: 'text',
+              content: part.text,
+              text: part.text,
+              timestamp: msgTs,
+            });
+          } else if (part.type === 'tool_use') {
+            msgs.push({
+              id: `${baseId}-${i}`,
+              sessionId: sid,
+              provider: this.providerId,
+              role: 'assistant',
+              kind: 'tool_use',
+              toolName: part.name,
+              toolInput: part.input,
+              toolId: part.id,
+              timestamp: msgTs,
+            });
+          } else if (part.type === 'tool_result') {
+            msgs.push({
+              id: `${baseId}-${i}`,
+              sessionId: sid,
+              provider: this.providerId,
+              role: 'user',
+              kind: 'tool_result',
+              content: typeof part.content === 'string' ? part.content : JSON.stringify(part.content),
+              toolResult: { content: typeof part.content === 'string' ? part.content : JSON.stringify(part.content) },
+              toolId: part.tool_use_id,
+              timestamp: msgTs,
+            });
+          }
+        }
+        if (msgs.length > 0) return msgs;
+      }
+    }
+
+    // Fallback
     return [
       {
-        id: `msg-${Date.now()}`,
+        id: baseId,
         sessionId: sid,
         provider: this.providerId,
-        role: 'assistant',
-        content: typeof raw === 'string' ? raw : JSON.stringify(raw),
-        timestamp: ts,
-        kind: 'text',
+        role: item.role === 'user' ? 'user' : 'assistant',
+        kind: item.kind || 'text',
+        content: typeof item.content === 'string' ? item.content : JSON.stringify(item),
+        text: typeof item.content === 'string' ? item.content : JSON.stringify(item),
+        timestamp: msgTs,
       },
     ];
   }
 
   async fetchHistory(sessionId: string, options?: FetchHistoryOptions): Promise<FetchHistoryResult> {
+    const limit = options?.limit ?? null;
+    const offset = options?.offset ?? 0;
+
+    // 1. Check if the session is recorded in sessionsDb with a jsonl_path
+    let jsonlPath: string | null = null;
+    const dbSession =
+      sessionsDb.getSessionById(sessionId) ??
+      sessionsDb.getSessionByProviderSessionId(sessionId);
+
+    if (dbSession?.jsonl_path && fs.existsSync(dbSession.jsonl_path)) {
+      jsonlPath = dbSession.jsonl_path;
+    }
+
+    // 2. If not found in DB row, scan declared watchPaths for this sessionId
+    if (!jsonlPath && this.getWatchPaths) {
+      const watchPaths = this.getWatchPaths();
+      for (const wp of watchPaths) {
+        const root = wp.rootPath;
+        if (!fs.existsSync(root)) continue;
+        const candidates = [
+          path.join(root, sessionId, '.system_generated', 'logs', 'transcript.jsonl'),
+          path.join(root, sessionId, 'transcript.jsonl'),
+          path.join(root, sessionId, 'session.jsonl'),
+          path.join(root, `${sessionId}.jsonl`),
+        ];
+        for (const cand of candidates) {
+          if (fs.existsSync(cand)) {
+            jsonlPath = cand;
+            break;
+          }
+        }
+        if (jsonlPath) break;
+      }
+    }
+
+    // 3. If transcript file found on disk, read and normalize lines
+    if (jsonlPath && fs.existsSync(jsonlPath)) {
+      try {
+        const fileContent = fs.readFileSync(jsonlPath, 'utf8');
+        const lines = fileContent.split('\n');
+        const allMessages: NormalizedMessage[] = [];
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          const parsed = tryParseJson(trimmed);
+          if (parsed) {
+            const normalized = this.normalizeMessage(parsed, sessionId);
+            allMessages.push(...normalized);
+          }
+        }
+
+        const total = allMessages.length;
+        const start = Math.max(0, offset);
+        const end = limit !== null ? start + limit : total;
+        const page = allMessages.slice(start, end);
+        const hasMore = end < total;
+
+        return {
+          messages: page,
+          total,
+          hasMore,
+          offset,
+          limit,
+        };
+      } catch (err: any) {
+        console.warn(`[PluginAgentSessions] Failed to read transcript from ${jsonlPath}: ${err.message}`);
+      }
+    }
+
+    // 4. Fallback: Query plugin server if active
     const port = getPluginPort(this.pluginName);
     if (port && isPluginRunning(this.pluginName)) {
       try {
@@ -547,24 +970,28 @@ export class PluginAgentSessions implements IProviderSessions {
 
         if (Array.isArray(res.session?.messages)) {
           const messages = res.session!.messages.flatMap((m) => this.normalizeMessage(m, sessionId));
+          const total = messages.length;
+          const start = Math.max(0, offset);
+          const end = limit !== null ? start + limit : total;
           return {
-            messages,
-            total: messages.length,
-            hasMore: false,
-            offset: options?.offset ?? 0,
-            limit: options?.limit ?? null,
+            messages: messages.slice(start, end),
+            total,
+            hasMore: end < total,
+            offset,
+            limit,
           };
         }
       } catch {
         // Fall through
       }
     }
+
     return {
       messages: [],
       total: 0,
       hasMore: false,
-      offset: options?.offset ?? 0,
-      limit: options?.limit ?? null,
+      offset,
+      limit,
     };
   }
 }
@@ -579,6 +1006,12 @@ export class PluginAgentSessionSynchronizer implements IProviderSessionSynchroni
   async synchronize(since?: Date): Promise<number> {
     let synchronized = 0;
     const port = getPluginPort(this.pluginName);
+
+    // If this provider has 0 indexed sessions in DB, do a full initial scan (ignore `since`)
+    const existingSessions = (sessionsDb as any).getSessionsByProvider
+      ? (sessionsDb as any).getSessionsByProvider(this.providerId)
+      : [];
+    const effectiveSince = existingSessions.length === 0 ? undefined : since;
 
     // 1. Fetch sessions from plugin server if available
     if (port && isPluginRunning(this.pluginName)) {
@@ -634,32 +1067,35 @@ export class PluginAgentSessionSynchronizer implements IProviderSessionSynchroni
       }
     }
 
-    // 2. Scan watchPaths if declared
+    // 2. Deep-scan watchPaths if declared
     const watchPaths = this.getWatchPaths();
     for (const wp of watchPaths) {
       if (!fs.existsSync(wp.rootPath)) continue;
-      try {
-        const files = fs.readdirSync(wp.rootPath);
-        for (const f of files) {
-          if (!f.endsWith('.json') && !f.endsWith('.jsonl')) continue;
-          const fullPath = path.join(wp.rootPath, f);
-          const stat = fs.statSync(fullPath);
-          if (since && stat.mtime <= since) continue;
+      const discovered = findTranscriptsInWatchPath(wp.rootPath);
+      for (const item of discovered) {
+        try {
+          const stat = fs.statSync(item.transcriptPath);
+          if (effectiveSince && stat.mtime <= effectiveSince) continue;
 
-          const baseName = path.basename(f, path.extname(f));
+          const meta = extractTranscriptMeta(item.transcriptPath, item.sessionId);
+          const projectPath = meta.projectPath || process.cwd();
+          const title = meta.title || `Session ${item.sessionId.slice(0, 8)}`;
+          const createdAt = meta.createdAt || stat.birthtime.toISOString();
+          const updatedAt = meta.updatedAt || stat.mtime.toISOString();
+
           sessionsDb.createSession(
-            baseName,
+            item.sessionId,
             this.providerId,
-            process.cwd(),
-            baseName,
-            stat.birthtime.toISOString(),
-            stat.mtime.toISOString(),
-            fullPath,
+            projectPath,
+            title,
+            createdAt,
+            updatedAt,
+            item.transcriptPath,
           );
           synchronized++;
+        } catch {
+          // Ignore individual file errors
         }
-      } catch {
-        // Ignore read errors
       }
     }
 
@@ -670,17 +1106,34 @@ export class PluginAgentSessionSynchronizer implements IProviderSessionSynchroni
     if (!fs.existsSync(filePath)) return null;
     try {
       const stat = fs.statSync(filePath);
-      const baseName = path.basename(filePath, path.extname(filePath));
+      let sessionId = path.basename(filePath, path.extname(filePath));
+
+      if (filePath.endsWith(path.join('.system_generated', 'logs', 'transcript.jsonl'))) {
+        const parts = filePath.split(path.sep);
+        const idx = parts.lastIndexOf('.system_generated');
+        if (idx > 0) {
+          sessionId = parts[idx - 1];
+        }
+      } else if (path.basename(filePath) === 'transcript.jsonl' || path.basename(filePath) === 'session.jsonl') {
+        sessionId = path.basename(path.dirname(filePath));
+      }
+
+      const meta = extractTranscriptMeta(filePath, sessionId);
+      const projectPath = meta.projectPath || process.cwd();
+      const title = meta.title || `Session ${sessionId.slice(0, 8)}`;
+      const createdAt = meta.createdAt || stat.birthtime.toISOString();
+      const updatedAt = meta.updatedAt || stat.mtime.toISOString();
+
       const sid = sessionsDb.createSession(
-        baseName,
+        sessionId,
         this.providerId,
-        process.cwd(),
-        baseName,
-        stat.birthtime.toISOString(),
-        stat.mtime.toISOString(),
+        projectPath,
+        title,
+        createdAt,
+        updatedAt,
         filePath,
       );
-      return sid || baseName;
+      return sid || sessionId;
     } catch {
       return null;
     }
@@ -732,8 +1185,12 @@ export class PluginAgentProvider implements IProvider {
     this.runtime = new PluginAgentRuntime(manifest.name, manifest);
     this.models = new PluginAgentModels(manifest.name, manifest);
     this.auth = new PluginAgentAuth(this.id, manifest.name, manifest);
-    this.sessions = new PluginAgentSessions(this.id, manifest.name);
     this.sessionSynchronizer = new PluginAgentSessionSynchronizer(this.id, manifest.name, manifest);
+    this.sessions = new PluginAgentSessions(
+      this.id,
+      manifest.name,
+      () => this.getWatchPaths(),
+    );
     this.mcp = new NoopMcpProvider(this.id);
     this.skills = new NoopSkillsProvider(this.id);
   }

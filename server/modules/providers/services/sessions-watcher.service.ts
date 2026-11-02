@@ -306,7 +306,7 @@ export async function initializeSessionsWatcher(): Promise<void> {
   }
 
   // Listen for newly registered providers
-  providerRegistry.onProvidersChanged(() => {
+  providerRegistry.onProvidersChanged(async () => {
     for (const provider of providerRegistry.listProviders()) {
       const customWatchPaths = (provider as any).getWatchPaths?.();
       if (Array.isArray(customWatchPaths)) {
@@ -315,6 +315,11 @@ export async function initializeSessionsWatcher(): Promise<void> {
           if (p) void watchProviderRoot(provider.id, p);
         }
       }
+    }
+    try {
+      await sessionSynchronizerService.synchronizeSessions();
+    } catch (err: any) {
+      console.warn('[SessionsWatcher] Session sync on providers changed failed:', err.message);
     }
   });
 }

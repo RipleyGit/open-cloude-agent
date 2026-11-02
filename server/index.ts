@@ -43,7 +43,7 @@ import {
     startEnabledPluginServers,
     stopAllPlugins,
 } from './modules/plugins/index.js';
-import providerRoutes from './modules/providers/provider.routes.js';
+import providerRoutes, { handleProviderIcon } from './modules/providers/provider.routes.js';
 import { voiceRoutes } from './modules/voice/index.js';
 import {
     closeScheduledMessageDispatcher,
@@ -199,6 +199,9 @@ app.use('/api/browser-use-mcp', browserUseMcpRoutes);
 
 // Browser API Routes (protected)
 app.use('/api/browser-use', authenticateToken, browserUseRoutes);
+
+// Provider icon endpoint is unauthenticated so browser <img> tags load without 401
+app.get('/api/providers/:provider/icon', handleProviderIcon);
 
 // Unified provider MCP routes (protected)
 app.use('/api/providers', authenticateToken, providerRoutes);

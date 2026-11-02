@@ -717,6 +717,14 @@ export function useProjectsState({
     }
   }, [isLoadingProjects, projects, selectedProject, sessionId]);
 
+  useEffect(() => {
+    const handleCustomRefresh = () => {
+      void refreshProjectsSilently();
+    };
+    window.addEventListener('projects:refresh', handleCustomRefresh);
+    return () => window.removeEventListener('projects:refresh', handleCustomRefresh);
+  }, [refreshProjectsSilently]);
+
   // Realtime sidebar updates. The backend pushes per-session deltas
   // (`session_upserted`) instead of full project snapshots, so each event is
   // a keyed upsert that can never clobber unrelated client state — no

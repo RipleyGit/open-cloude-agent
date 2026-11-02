@@ -4,6 +4,9 @@ import fs from 'node:fs';
 
 import { AppError } from '@/shared/utils.js';
 import { providerRegistry } from '../providers/provider.registry.js';
+import { sessionSynchronizerService } from '@/modules/providers/services/session-synchronizer.service.js';
+import { sessionsDb } from '@/modules/database/index.js';
+import { broadcastSessionUpsertedBatch } from '@/modules/websocket/index.js';
 import { PluginAgentProvider, type PluginAgentManifest } from './plugin-agent.provider.js';
 import {
   getPluginDir,
@@ -86,6 +89,20 @@ function extractProviderId(manifest: any): string {
     manifest.agent?.providerId ||
     manifest.name.replace(/^cloudcli-plugin-/, '').replace(/^cloude-agent-/, '')
   );
+}
+
+async function syncAndBroadcastProviderSessions(providerId: string): Promise<void> {
+  try {
+    await sessionSynchronizerService.synchronizeSessions();
+    const rows = (sessionsDb as any).getSessionsByProvider
+      ? (sessionsDb as any).getSessionsByProvider(providerId)
+      : [];
+    if (rows.length > 0) {
+      await broadcastSessionUpsertedBatch(rows.map((r: any) => r.session_id));
+    }
+  } catch (err: any) {
+    console.warn(`[AgentPlugins] Session sync failed for ${providerId}:`, err.message);
+  }
 }
 
 export const agentPluginsService = {
@@ -249,6 +266,8 @@ export const agentPluginsService = {
     providerRegistry.registerProvider(provider);
     console.log(`[AgentPlugins] Successfully installed and registered agent provider "${provider.id}"`);
 
+    await syncAndBroadcastProviderSessions(provider.id);
+
     return {
       success: true,
       plugin: rawManifest,
@@ -280,6 +299,7 @@ export const agentPluginsService = {
     if (pluginDir && (updatedManifest.type === 'agent' || updatedManifest.agent)) {
       const provider = new PluginAgentProvider(updatedManifest, pluginDir);
       providerRegistry.registerProvider(provider);
+      await syncAndBroadcastProviderSessions(provider.id);
     }
 
     return {
@@ -338,6 +358,7 @@ export const agentPluginsService = {
       }
       const provider = new PluginAgentProvider(plugin as any, pluginDir);
       providerRegistry.registerProvider(provider);
+      await syncAndBroadcastProviderSessions(provider.id);
     } else {
       if (isPluginRunning(name)) {
         try {

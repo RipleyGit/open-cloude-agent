@@ -23,11 +23,19 @@ export function LLMProviderLogo({
 }: LLMProviderLogoProps) {
   const [imgFailed, setImgFailed] = useState(false);
 
+  const isDirectUrl = Boolean(
+    icon &&
+      (icon.startsWith('http://') ||
+        icon.startsWith('https://') ||
+        icon.startsWith('data:') ||
+        icon.startsWith('/')),
+  );
+
   // If a direct icon URL or data URI was provided, render it directly
-  if (icon && !imgFailed) {
+  if (isDirectUrl && !imgFailed) {
     return (
       <img
-        src={icon}
+        src={icon!}
         alt={String(provider || 'agent')}
         className={`${className} object-contain shrink-0 rounded-sm`}
         onError={() => setImgFailed(true)}

@@ -13,6 +13,7 @@ import { providerTokenUsageService } from '@/modules/providers/services/provider
 import { providerSkillsService } from '@/modules/providers/services/skills.service.js';
 import { sessionConversationsSearchService } from '@/modules/providers/services/session-conversations-search.service.js';
 import { sessionsService } from '@/modules/providers/services/sessions.service.js';
+import { getPluginDir, scanPlugins } from '@/modules/plugins/plugin-registry.service.js';
 import type {
   CustomProviderModelEffort,
   CustomProviderModelInput,
@@ -644,14 +645,27 @@ router.get(
   }),
 );
 
-router.get(
-  '/:provider/icon',
-  asyncHandler(async (req: Request, res: Response) => {
-    const rawProvider = String(req.params.provider || '').toLowerCase();
-    if (!providerRegistry.hasProvider(rawProvider as LLMProvider)) {
-      return res.status(404).end();
-    }
+function streamImageFile(res: Response, filePath: string) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType =
+    ext === '.svg' ? 'image/svg+xml' :
+    ext === '.png' ? 'image/png' :
+    ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+    ext === '.webp' ? 'image/webp' :
+    'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return fs.createReadStream(filePath).pipe(res);
+}
 
+export const handleProviderIcon = asyncHandler(async (req: Request, res: Response) => {
+  const rawProvider = String(req.params.provider || '').toLowerCase();
+  if (!rawProvider) {
+    return res.status(404).end();
+  }
+
+  // 1. If provider registered in providerRegistry
+  if (providerRegistry.hasProvider(rawProvider as LLMProvider)) {
     const provider = providerRegistry.resolveProvider(rawProvider as LLMProvider) as any;
     if (provider.isPlugin && provider.pluginDir) {
       const manifest = provider.manifest || {};
@@ -660,41 +674,64 @@ router.get(
         path.resolve(provider.pluginDir, iconFile),
         path.resolve(provider.pluginDir, 'icon.svg'),
         path.resolve(provider.pluginDir, 'icon.png'),
+        path.resolve(provider.pluginDir, 'icon.webp'),
       ];
 
       for (const p of possiblePaths) {
         if (fs.existsSync(p)) {
-          const ext = path.extname(p).toLowerCase();
-          const contentType =
-            ext === '.svg' ? 'image/svg+xml' :
-            ext === '.png' ? 'image/png' :
-            ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
-            ext === '.webp' ? 'image/webp' :
-            'application/octet-stream';
-          res.setHeader('Content-Type', contentType);
-          res.setHeader('Cache-Control', 'public, max-age=3600');
-          return fs.createReadStream(p).pipe(res);
+          return streamImageFile(res, p);
         }
       }
     }
+  }
 
-    // Static public/icons fallback
-    const staticSvg = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.svg`);
-    const staticPng = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.png`);
-    if (fs.existsSync(staticSvg)) {
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      return fs.createReadStream(staticSvg).pipe(res);
-    }
-    if (fs.existsSync(staticPng)) {
-      res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      return fs.createReadStream(staticPng).pipe(res);
-    }
+  // 2. Fallback: Search installed plugins via scanPlugins()
+  try {
+    const plugins = scanPlugins();
+    const matched = plugins.find(
+      (p) =>
+        p.name.toLowerCase() === rawProvider ||
+        String((p.agent as any)?.id || '').toLowerCase() === rawProvider ||
+        String((p.agent as any)?.providerId || '').toLowerCase() === rawProvider ||
+        p.name.replace(/^cloudcli-plugin-/, '').replace(/^cloude-agent-/, '').toLowerCase() === rawProvider
+    );
 
-    return res.status(404).end();
-  }),
-);
+    if (matched) {
+      const pluginDir = getPluginDir(matched.name);
+      if (pluginDir) {
+        const manifestIcon = matched.icon && matched.icon !== 'Bot' && matched.icon !== 'Puzzle' ? matched.icon : null;
+        const possiblePaths = [
+          manifestIcon ? path.resolve(pluginDir, manifestIcon) : null,
+          path.resolve(pluginDir, 'icon.svg'),
+          path.resolve(pluginDir, 'icon.png'),
+          path.resolve(pluginDir, 'icon.webp'),
+        ].filter(Boolean) as string[];
+
+        for (const p of possiblePaths) {
+          if (fs.existsSync(p)) {
+            return streamImageFile(res, p);
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore scan errors
+  }
+
+  // 3. Static public/icons fallback
+  const staticSvg = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.svg`);
+  const staticPng = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.png`);
+  if (fs.existsSync(staticSvg)) {
+    return streamImageFile(res, staticSvg);
+  }
+  if (fs.existsSync(staticPng)) {
+    return streamImageFile(res, staticPng);
+  }
+
+  return res.status(404).end();
+});
+
+router.get('/:provider/icon', handleProviderIcon);
 
 router.get(
   '/:provider/auth/status',
