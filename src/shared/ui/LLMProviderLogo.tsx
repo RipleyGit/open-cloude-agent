@@ -26,5 +26,15 @@ export function LLMProviderLogo({
     return <OpenCodeLogo className={className} />;
   }
 
+  if (provider === 'agy' || provider === 'antigravity' || provider === 'activity') {
+    return (
+      <img
+        src="/icons/agy.svg"
+        alt="Antigravity"
+        className={`inline-block rounded-sm object-contain ${className}`}
+      />
+    );
+  }
+
   return <ClaudeLogo className={className} />;
 }

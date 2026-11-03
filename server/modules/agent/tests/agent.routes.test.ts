@@ -51,6 +51,7 @@ function createDependencies(
     queryCursor: unexpectedProviderCall as AgentDependencies['queryCursor'],
     queryCodex: unexpectedProviderCall as AgentDependencies['queryCodex'],
     queryOpenCode: unexpectedProviderCall as AgentDependencies['queryOpenCode'],
+    queryAgy: unexpectedProviderCall as AgentDependencies['queryAgy'],
     GithubClient: class {} as unknown as AgentDependencies['GithubClient'],
     ...overrides,
   };
@@ -281,6 +282,36 @@ test('Agent route starts codex on the catalog default when the request names no 
   });
 
   assert.deepEqual(codexCalls.map((call) => call.model), ['catalog-default']);
+});
+
+test('Agent route starts agy on the catalog default when the request names no model', async () => {
+  const agyCalls: { model?: string }[] = [];
+
+  await withAgentServer(createDependencies({
+    fileSystem: {
+      access: async () => undefined,
+    } as unknown as AgentDependencies['fileSystem'],
+    models: {
+      getProviderModels: async () => ({ OPTIONS: [], DEFAULT: 'gemini-3.8-flash-high' }),
+    } as unknown as AgentDependencies['models'],
+    queryAgy: (async (_prompt: string, options: { model?: string }) => {
+      agyCalls.push(options);
+    }) as unknown as AgentDependencies['queryAgy'],
+  }), async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/agent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        projectPath: '/home/test/project',
+        message: 'Run',
+        provider: 'agy',
+        stream: false,
+      }),
+    });
+    assert.equal(response.status, 200);
+  });
+
+  assert.deepEqual(agyCalls.map((call) => call.model), ['gemini-3.8-flash-high']);
 });
 
 /**

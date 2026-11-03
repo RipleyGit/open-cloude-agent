@@ -443,6 +443,8 @@ function ChatInterface({
         ? t('messageTypes.codex')
         : provider === 'opencode'
             ? t('messageTypes.opencode', { defaultValue: 'OpenCode' })
+            : provider === 'agy'
+              ? t('messageTypes.agy', { defaultValue: 'Antigravity' })
           : t('messageTypes.claude');
 
   if (!selectedProject) {

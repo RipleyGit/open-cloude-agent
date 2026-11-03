@@ -121,6 +121,20 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsMessageEditing: false,
     supportsSessionForking: false,
   },
+  agy: {
+    provider: 'agy',
+    permissionModes: ['default', 'acceptEdits', 'bypassPermissions', 'plan'],
+    defaultPermissionMode: 'default',
+    supportsImages: true,
+    supportsFiles: true,
+    supportsAbort: true,
+    supportsPermissionRequests: false,
+    supportsTokenUsage: true,
+    supportsEffort: true,
+    effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+    supportsMessageEditing: false,
+    supportsSessionForking: false,
+  },
 };
 
 /**

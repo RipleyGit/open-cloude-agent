@@ -2,6 +2,7 @@ import { ClaudeProvider } from '@/modules/providers/list/claude/claude.provider.
 import { CodexProvider } from '@/modules/providers/list/codex/codex.provider.js';
 import { CursorProvider } from '@/modules/providers/list/cursor/cursor.provider.js';
 import { OpenCodeProvider } from '@/modules/providers/list/opencode/opencode.provider.js';
+import { AgyProvider } from '@/modules/providers/list/agy/agy.provider.js';
 import type { IProvider } from '@/shared/interfaces.js';
 import type { LLMProvider } from '@/shared/types.js';
 import { AppError } from '@/shared/utils.js';
@@ -11,6 +12,7 @@ const providers: Record<LLMProvider, IProvider> = {
   codex: new CodexProvider(),
   cursor: new CursorProvider(),
   opencode: new OpenCodeProvider(),
+  agy: new AgyProvider(),
 };
 
 /**
@@ -22,7 +24,8 @@ export const providerRegistry = {
   },
 
   resolveProvider(provider: string): IProvider {
-    const key = provider as LLMProvider;
+    const normalized = provider.trim().toLowerCase();
+    const key = (normalized === 'activity' || normalized === 'antigravity' ? 'agy' : normalized) as LLMProvider;
     const resolvedProvider = providers[key];
     if (!resolvedProvider) {
       throw new AppError(`Unsupported provider "${provider}".`, {
