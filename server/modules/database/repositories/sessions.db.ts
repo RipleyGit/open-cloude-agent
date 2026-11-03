@@ -722,18 +722,4 @@ export const sessionsDb = {
       )
       .all() as Array<{ session_id: string; jsonl_path: string }>;
   },
-
-  getSessionsByProvider(provider: string): SessionRow[] {
-    const db = getConnection();
-    const rows = db
-      .prepare(
-        `SELECT ${SESSION_ROW_COLUMNS}
-         FROM sessions
-         WHERE provider = ?
-           AND isArchived = 0`
-      )
-      .all(provider) as SessionRow[];
-
-    return normalizeSessionRows(rows);
-  },
 };

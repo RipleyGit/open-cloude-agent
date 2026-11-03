@@ -78,8 +78,7 @@ function getProviderDisplayName(p: LLMProvider) {
   if (p === "cursor") return "Cursor";
   if (p === "codex") return "Codex";
   if (p === "opencode") return "OpenCode";
-  if (p === "agy") return "Antigravity CLI";
-  return String(p).charAt(0).toUpperCase() + String(p).slice(1);
+  return "Claude";
 }
 
 /**
@@ -123,30 +122,15 @@ export default function ProviderSelectionEmptyState({
   }, []);
 
   /** One collapsible branch per provider, in the order the picker lists them. */
-  const visibleProviderGroups = useMemo<ModelGroup[]>(() => {
-    const builtin = PROVIDER_META.map((meta) => ({
+  const visibleProviderGroups = useMemo<ModelGroup[]>(
+    () => PROVIDER_META.map((meta) => ({
       key: meta.id,
       provider: meta.id,
       name: meta.name,
       models: providerModelCatalog[meta.id]?.OPTIONS ?? [],
-    }));
-
-    const knownKeys = new Set(PROVIDER_META.map((m) => m.id));
-    const extra: ModelGroup[] = [];
-
-    for (const [provId, def] of Object.entries(providerModelCatalog)) {
-      if (!knownKeys.has(provId as LLMProvider)) {
-        extra.push({
-          key: provId,
-          provider: provId as LLMProvider,
-          name: getProviderDisplayName(provId as LLMProvider),
-          models: def?.OPTIONS ?? [],
-        });
-      }
-    }
-
-    return [...builtin, ...extra];
-  }, [providerModelCatalog]);
+    })),
+    [providerModelCatalog],
+  );
 
   /**
    * Names of the branches whose built-in models are hidden ("Use only my
@@ -331,23 +315,21 @@ export default function ProviderSelectionEmptyState({
 
           <p className="mt-4 text-center text-sm text-muted-foreground/70">
             {
-              (
-                {
-                  claude: t("providerSelection.readyPrompt.claude", {
-                    model: providerModels.claude,
-                  }),
-                  cursor: t("providerSelection.readyPrompt.cursor", {
-                    model: providerModels.cursor,
-                  }),
-                  codex: t("providerSelection.readyPrompt.codex", {
-                    model: providerModels.codex,
-                  }),
-                  opencode: t("providerSelection.readyPrompt.opencode", {
-                    model: providerModels.opencode,
-                    defaultValue: "Ready with OpenCode {{model}}",
-                  }),
-                } as Record<string, string>
-              )[provider] || `Ready with ${String(provider)} (${providerModels[provider] || 'default'})`
+              {
+                claude: t("providerSelection.readyPrompt.claude", {
+                  model: providerModels.claude,
+                }),
+                cursor: t("providerSelection.readyPrompt.cursor", {
+                  model: providerModels.cursor,
+                }),
+                codex: t("providerSelection.readyPrompt.codex", {
+                  model: providerModels.codex,
+                }),
+                opencode: t("providerSelection.readyPrompt.opencode", {
+                  model: providerModels.opencode,
+                  defaultValue: "Ready with OpenCode {{model}}",
+                }),
+              }[provider]
             }
           </p>
 

@@ -26,8 +26,8 @@ function sanitizeRepoUrl(raw) {
     return raw.replace(/\/\/[^@/]+@/, '//');
   }
 }
-const ALLOWED_TYPES = ['react', 'module', 'agent'];
-const ALLOWED_SLOTS = ['tab', 'agent'];
+const ALLOWED_TYPES = ['react', 'module'];
+const ALLOWED_SLOTS = ['tab'];
 
 export function getPluginsDir() {
   if (!fs.existsSync(PLUGINS_DIR)) {
@@ -60,10 +60,7 @@ export function validateManifest(manifest) {
     return { valid: false, error: 'Manifest must be a JSON object' };
   }
 
-  const isAgentPlugin = manifest.type === 'agent' || manifest.agent !== undefined;
-  const requiredFields = isAgentPlugin ? ['name', 'displayName'] : REQUIRED_MANIFEST_FIELDS;
-
-  for (const field of requiredFields) {
+  for (const field of REQUIRED_MANIFEST_FIELDS) {
     if (!manifest[field] || typeof manifest[field] !== 'string') {
       return { valid: false, error: `Missing or invalid required field: ${field}` };
     }
@@ -83,21 +80,13 @@ export function validateManifest(manifest) {
   }
 
   // Validate entry is a relative path without traversal
-  if (manifest.entry !== undefined && manifest.entry !== null) {
-    if (typeof manifest.entry !== 'string' || manifest.entry.includes('..') || path.isAbsolute(manifest.entry)) {
-      return { valid: false, error: 'Entry must be a relative path without ".."' };
-    }
+  if (manifest.entry.includes('..') || path.isAbsolute(manifest.entry)) {
+    return { valid: false, error: 'Entry must be a relative path without ".."' };
   }
 
   if (manifest.server !== undefined && manifest.server !== null) {
     if (typeof manifest.server !== 'string' || manifest.server.includes('..') || path.isAbsolute(manifest.server)) {
       return { valid: false, error: 'Server entry must be a relative path string without ".."' };
-    }
-  }
-
-  if (manifest.agent !== undefined && manifest.agent !== null) {
-    if (typeof manifest.agent !== 'object' || Array.isArray(manifest.agent)) {
-      return { valid: false, error: 'Agent configuration must be an object' };
     }
   }
 
@@ -215,19 +204,17 @@ export function scanPlugins() {
         }
       } catch { /* ignore */ }
 
-      const isAgent = manifest.type === 'agent' || Boolean(manifest.agent);
       plugins.push({
         name: manifest.name,
         displayName: manifest.displayName,
         version: manifest.version || '0.0.0',
         description: manifest.description || '',
         author: manifest.author || '',
-        icon: manifest.icon || (isAgent ? 'Bot' : 'Puzzle'),
-        type: manifest.type || (isAgent ? 'agent' : 'module'),
-        slot: manifest.slot || (isAgent ? 'agent' : 'tab'),
-        entry: manifest.entry || '',
+        icon: manifest.icon || 'Puzzle',
+        type: manifest.type || 'module',
+        slot: manifest.slot || 'tab',
+        entry: manifest.entry,
         server: manifest.server || null,
-        agent: manifest.agent || null,
         permissions: manifest.permissions || [],
         enabled: config[manifest.name]?.enabled !== false, // enabled by default
         dirName: entry.name,

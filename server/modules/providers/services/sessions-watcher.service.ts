@@ -5,7 +5,6 @@ import { promises as fsPromises } from 'node:fs';
 import chokidar, { type FSWatcher } from 'chokidar';
 
 import { sessionSynchronizerService } from '@/modules/providers/services/session-synchronizer.service.js';
-import { providerRegistry } from '@/modules/providers/provider.registry.js';
 import { broadcastSessionUpsertedBatch } from '@/modules/websocket/index.js';
 import type { LLMProvider } from '@/shared/types.js';
 
@@ -85,52 +84,6 @@ const PROJECTS_UPDATE_DEBOUNCE_MS = 500;
 const PROJECTS_UPDATE_MAX_WAIT_MS = 2_000;
 
 const watchers: FSWatcher[] = [];
-const watchedPaths = new Set<string>();
-
-/**
- * Attaches a filesystem watcher to a provider transcript root directory.
- */
-export async function watchProviderRoot(provider: LLMProvider, rootPath: string): Promise<void> {
-  const normalizedPath = path.resolve(rootPath);
-  if (watchedPaths.has(normalizedPath)) {
-    return;
-  }
-  try {
-    await fsPromises.mkdir(normalizedPath, { recursive: true });
-
-    const watcher = chokidar.watch(normalizedPath, {
-      ignored: createWatcherIgnoredMatcher(normalizedPath),
-      persistent: true,
-      ignoreInitial: true,
-      followSymlinks: false,
-      depth: 6,
-      usePolling: true,
-      interval: 6_000,
-      binaryInterval: 6_000,
-    });
-
-    watcher
-      .on('add', (filePath: string) => {
-        void onUpdate('add', filePath, provider);
-      })
-      .on('change', (filePath: string) => {
-        void onUpdate('change', filePath, provider);
-      })
-      .on('error', (error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(`Session watcher error for provider "${provider}"`, { error: message });
-      });
-
-    watchers.push(watcher);
-    watchedPaths.add(normalizedPath);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to initialize session watcher for provider "${provider}"`, {
-      rootPath: normalizedPath,
-      error: message,
-    });
-  }
-}
 
 type PendingWatcherUpdate = {
   providers: Set<LLMProvider>;
@@ -291,37 +244,45 @@ export async function initializeSessionsWatcher(): Promise<void> {
   });
 
   for (const { provider, rootPath } of PROVIDER_WATCH_PATHS) {
-    await watchProviderRoot(provider, rootPath);
-  }
-
-  // Scan watch paths from dynamic providers (agent plugins)
-  for (const provider of providerRegistry.listProviders()) {
-    const customWatchPaths = (provider as any).getWatchPaths?.();
-    if (Array.isArray(customWatchPaths)) {
-      for (const wp of customWatchPaths) {
-        const p = typeof wp === 'string' ? wp : wp?.rootPath;
-        if (p) await watchProviderRoot(provider.id, p);
-      }
-    }
-  }
-
-  // Listen for newly registered providers
-  providerRegistry.onProvidersChanged(async () => {
-    for (const provider of providerRegistry.listProviders()) {
-      const customWatchPaths = (provider as any).getWatchPaths?.();
-      if (Array.isArray(customWatchPaths)) {
-        for (const wp of customWatchPaths) {
-          const p = typeof wp === 'string' ? wp : wp?.rootPath;
-          if (p) void watchProviderRoot(provider.id, p);
-        }
-      }
-    }
     try {
-      await sessionSynchronizerService.synchronizeSessions();
-    } catch (err: any) {
-      console.warn('[SessionsWatcher] Session sync on providers changed failed:', err.message);
+      await fsPromises.mkdir(rootPath, { recursive: true });
+
+      const watcher = chokidar.watch(rootPath, {
+        ignored: createWatcherIgnoredMatcher(rootPath),
+        persistent: true,
+        ignoreInitial: true,
+        followSymlinks: false,
+        depth: 6,
+        // Polling reaches filesystems that native events cannot: WSL's /mnt/c,
+        // network shares, some container mounts. Where native events do work,
+        // chokidar's own CHOKIDAR_USEPOLLING=false overrides this and a finished
+        // turn reaches the sidebar at once instead of up to 6 s later.
+        usePolling: true,
+        interval: 6_000,
+        binaryInterval: 6_000,
+      });
+
+      watcher
+        .on('add', (filePath: string) => {
+          void onUpdate('add', filePath, provider);
+        })
+        .on('change', (filePath: string) => {
+          void onUpdate('change', filePath, provider);
+        })
+        .on('error', (error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`Session watcher error for provider "${provider}"`, { error: message });
+        });
+
+      watchers.push(watcher);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to initialize session watcher for provider "${provider}"`, {
+        rootPath,
+        error: message,
+      });
     }
-  });
+  }
 }
 
 /**
@@ -341,7 +302,6 @@ export async function closeSessionsWatcher(): Promise<void> {
     })
   );
   watchers.length = 0;
-  watchedPaths.clear();
   pendingWatcherUpdate = null;
   pendingWatcherUpdateStartedAt = null;
   watcherRefreshInFlight = false;

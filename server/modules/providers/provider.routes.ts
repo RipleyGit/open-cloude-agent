@@ -1,9 +1,6 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import express, { type Request, type Response } from 'express';
 
 import { providerAuthService } from '@/modules/providers/services/provider-auth.service.js';
-import { providerRegistry } from '@/modules/providers/provider.registry.js';
 import { claudeSettingsPermissionsService } from '@/modules/providers/services/claude-settings-permissions.service.js';
 import { providerCapabilitiesService } from '@/modules/providers/services/provider-capabilities.service.js';
 import { providerCliService } from '@/modules/providers/services/provider-cli.service.js';
@@ -13,7 +10,6 @@ import { providerTokenUsageService } from '@/modules/providers/services/provider
 import { providerSkillsService } from '@/modules/providers/services/skills.service.js';
 import { sessionConversationsSearchService } from '@/modules/providers/services/session-conversations-search.service.js';
 import { sessionsService } from '@/modules/providers/services/sessions.service.js';
-import { getPluginDir, scanPlugins } from '@/modules/plugins/plugin-registry.service.js';
 import type {
   CustomProviderModelEffort,
   CustomProviderModelInput,
@@ -318,8 +314,13 @@ const parseProviderSkillCreatePayload = (payload: unknown): ProviderSkillCreateI
 
 const parseProvider = (value: unknown): LLMProvider => {
   const normalized = normalizeProviderParam(value);
-  if (providerRegistry.hasProvider(normalized)) {
-    return normalized as LLMProvider;
+  if (
+    normalized === 'claude'
+    || normalized === 'codex'
+    || normalized === 'cursor'
+    || normalized === 'opencode'
+  ) {
+    return normalized;
   }
 
   throw new AppError(`Unsupported provider "${normalized}".`, {
@@ -622,118 +623,6 @@ const parseCustomModelsOnlyPayload = (payload: unknown): boolean => {
 
   return enabled;
 };
-
-router.get(
-  '/',
-  asyncHandler(async (_req: Request, res: Response) => {
-    const list = providerRegistry.listProviders().map((p) => {
-      const isPlugin = (p as any).isPlugin ?? false;
-      const manifest = (p as any).manifest;
-      return {
-        id: p.id,
-        name: (p as any).displayName || (p as any).name || p.id,
-        cliName: (p as any).cliName || p.id,
-        isBuiltin: !isPlugin,
-        isPlugin,
-        pluginName: manifest?.name,
-        description: manifest?.description || '',
-        version: manifest?.version || '',
-        repoUrl: manifest?.repoUrl || null,
-      };
-    });
-    res.json(createApiSuccessResponse({ providers: list }));
-  }),
-);
-
-function streamImageFile(res: Response, filePath: string) {
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType =
-    ext === '.svg' ? 'image/svg+xml' :
-    ext === '.png' ? 'image/png' :
-    ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
-    ext === '.webp' ? 'image/webp' :
-    'application/octet-stream';
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  return fs.createReadStream(filePath).pipe(res);
-}
-
-export const handleProviderIcon = asyncHandler(async (req: Request, res: Response) => {
-  const rawProvider = String(req.params.provider || '').toLowerCase();
-  if (!rawProvider) {
-    return res.status(404).end();
-  }
-
-  // 1. If provider registered in providerRegistry
-  if (providerRegistry.hasProvider(rawProvider as LLMProvider)) {
-    const provider = providerRegistry.resolveProvider(rawProvider as LLMProvider) as any;
-    if (provider.isPlugin && provider.pluginDir) {
-      const manifest = provider.manifest || {};
-      const iconFile = manifest.icon || 'icon.svg';
-      const possiblePaths = [
-        path.resolve(provider.pluginDir, iconFile),
-        path.resolve(provider.pluginDir, 'icon.svg'),
-        path.resolve(provider.pluginDir, 'icon.png'),
-        path.resolve(provider.pluginDir, 'icon.webp'),
-      ];
-
-      for (const p of possiblePaths) {
-        if (fs.existsSync(p)) {
-          return streamImageFile(res, p);
-        }
-      }
-    }
-  }
-
-  // 2. Fallback: Search installed plugins via scanPlugins()
-  try {
-    const plugins = scanPlugins();
-    const matched = plugins.find(
-      (p) =>
-        p.name.toLowerCase() === rawProvider ||
-        String((p.agent as any)?.id || '').toLowerCase() === rawProvider ||
-        String((p.agent as any)?.providerId || '').toLowerCase() === rawProvider ||
-        p.name.replace(/^cloudcli-plugin-/, '').replace(/^cloude-agent-/, '').toLowerCase() === rawProvider
-    );
-
-    if (matched) {
-      const pluginDir = getPluginDir(matched.name);
-      if (pluginDir) {
-        const manifestIcon = matched.icon && matched.icon !== 'Bot' && matched.icon !== 'Puzzle' ? matched.icon : null;
-        const possiblePaths = [
-          manifestIcon ? path.resolve(pluginDir, manifestIcon) : null,
-          path.resolve(pluginDir, 'icon.svg'),
-          path.resolve(pluginDir, 'icon.png'),
-          path.resolve(pluginDir, 'icon.webp'),
-        ].filter(Boolean) as string[];
-
-        for (const p of possiblePaths) {
-          if (fs.existsSync(p)) {
-            return streamImageFile(res, p);
-          }
-        }
-      }
-    }
-  } catch {
-    // Ignore scan errors
-  }
-
-  // 3. Static public/icons fallback
-  const staticSvg = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.svg`);
-  const staticPng = path.resolve(process.cwd(), 'public', 'icons', `${rawProvider}.png`);
-  if (fs.existsSync(staticSvg)) {
-    return streamImageFile(res, staticSvg);
-  }
-  if (fs.existsSync(staticPng)) {
-    return streamImageFile(res, staticPng);
-  }
-
-  return res.status(404).end();
-});
-
-router.get('/:provider/icon', handleProviderIcon);
 
 router.get(
   '/:provider/auth/status',

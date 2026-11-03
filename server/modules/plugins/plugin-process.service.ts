@@ -5,8 +5,6 @@ import path from 'path';
 import spawn from 'cross-spawn';
 
 import { scanPlugins, getPluginsConfig, getPluginDir } from './plugin-registry.service.js';
-import { providerRegistry } from '../providers/provider.registry.js';
-import { PluginAgentProvider } from './plugin-agent.provider.js';
 
 // Map<pluginName, { process, port }>
 const runningPlugins = new Map();
@@ -196,36 +194,10 @@ export function stopAllPlugins() {
 }
 
 /**
- * Registers all enabled plugins that declare type "agent" (or have agent metadata)
- * into the central providerRegistry.
- */
-export function registerEnabledAgentPlugins() {
-  const plugins = scanPlugins();
-  const config = getPluginsConfig();
-
-  for (const plugin of plugins) {
-    if (config[plugin.name]?.enabled === false) continue;
-    if (plugin.type === 'agent' || plugin.agent) {
-      const pluginDir = getPluginDir(plugin.name);
-      if (!pluginDir) continue;
-      try {
-        const provider = new PluginAgentProvider(plugin, pluginDir);
-        providerRegistry.registerProvider(provider);
-        console.log(`[Plugins] Registered agent plugin as provider "${provider.id}"`);
-      } catch (err) {
-        console.error(`[Plugins] Failed to register agent plugin "${plugin.name}":`, err.message);
-      }
-    }
-  }
-}
-
-/**
  * Start servers for all enabled plugins that have a server entry.
  * Called once on host server boot.
  */
 export async function startEnabledPluginServers() {
-  registerEnabledAgentPlugins();
-
   const plugins = scanPlugins();
   const config = getPluginsConfig();
 

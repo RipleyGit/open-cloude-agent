@@ -38,12 +38,10 @@ import { userRoutes } from './modules/user/index.js';
 import {
     getPluginPort,
     pluginsRoutes,
-    agentPluginsRoutes,
-    registerEnabledAgentPlugins,
     startEnabledPluginServers,
     stopAllPlugins,
 } from './modules/plugins/index.js';
-import providerRoutes, { handleProviderIcon } from './modules/providers/provider.routes.js';
+import providerRoutes from './modules/providers/provider.routes.js';
 import { voiceRoutes } from './modules/voice/index.js';
 import {
     closeScheduledMessageDispatcher,
@@ -191,17 +189,11 @@ app.use('/api/user', authenticateToken, userRoutes);
 // Plugins API Routes (protected)
 app.use('/api/plugins', authenticateToken, pluginsRoutes);
 
-// Dedicated Agent Plugins API Routes (protected)
-app.use('/api/agent-plugins', authenticateToken, agentPluginsRoutes);
-
 // Browser MCP bridge API (local token protected)
 app.use('/api/browser-use-mcp', browserUseMcpRoutes);
 
 // Browser API Routes (protected)
 app.use('/api/browser-use', authenticateToken, browserUseRoutes);
-
-// Provider icon endpoint is unauthenticated so browser <img> tags load without 401
-app.get('/api/providers/:provider/icon', handleProviderIcon);
 
 // Unified provider MCP routes (protected)
 app.use('/api/providers', authenticateToken, providerRoutes);
@@ -387,9 +379,6 @@ async function startServer() {
                 .catch((error) => {
                     console.warn('[WARN] Could not check for leftover OpenCode servers:', getErrorMessage(error));
                 });
-
-            // Discover and register agent plugins into providerRegistry before session sync
-            registerEnabledAgentPlugins();
 
             // Start watching the projects folder for changes
             await initializeSessionsWatcher();

@@ -416,7 +416,6 @@ export const api = {
 
   // Provider (coding agent) endpoints — models, capabilities, sessions, MCP, skills.
   providers: {
-    list: () => get('/api/providers'),
     capabilities: () => get('/api/providers/capabilities'),
     authStatus: (provider: string) =>
       get(`/api/providers/${encodeURIComponent(provider)}/auth/status`),
@@ -596,17 +595,6 @@ export const api = {
           ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         },
       ),
-  },
-
-  agentPlugins: {
-    list: () => get('/api/agent-plugins'),
-    recommended: () => get('/api/agent-plugins/recommended'),
-    install: (url: string) => post('/api/agent-plugins/install', { url }),
-    uninstall: (name: string) => del(`/api/agent-plugins/${encodeURIComponent(name)}`),
-    update: (name: string) => post(`/api/agent-plugins/${encodeURIComponent(name)}/update`),
-    toggle: (name: string, enabled: boolean) =>
-      put(`/api/agent-plugins/${encodeURIComponent(name)}/enable`, { enabled }),
-    status: (name: string) => get(`/api/agent-plugins/${encodeURIComponent(name)}/status`),
   },
 
   browserUse: {

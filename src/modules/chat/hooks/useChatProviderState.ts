@@ -35,8 +35,7 @@ const FALLBACK_DEFAULT_MODEL: Record<LLMProvider, string> = {
   opencode: 'anthropic/claude-sonnet-4-5',
 };
 
-const BUILTIN_PROVIDERS: LLMProvider[] = ['claude', 'cursor', 'codex', 'opencode'];
-const PROVIDERS: LLMProvider[] = BUILTIN_PROVIDERS;
+const PROVIDERS: LLMProvider[] = ['claude', 'cursor', 'codex', 'opencode'];
 
 /** localStorage key holding the user's default model for one provider. */
 const providerModelStorageKey = (provider: LLMProvider): string => `${provider}-model`;
@@ -194,37 +193,10 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     setProviderModelsLoading(true);
 
     try {
-      // Discover all available providers: built-ins, capabilities, and dynamic agent plugins
-      const providerSet = new Set<string>(BUILTIN_PROVIDERS);
-
-      try {
-        const capRes = await api.providers.capabilities();
-        const capBody = await capRes.json();
-        if (capBody.success && Array.isArray(capBody.data?.providers)) {
-          for (const item of capBody.data.providers) {
-            if (item.provider) providerSet.add(item.provider);
-          }
-        }
-      } catch {
-        // Fallback gracefully if capabilities cannot be queried
-      }
-
-      try {
-        const plugRes = await api.agentPlugins.list();
-        const plugBody = await plugRes.json();
-        if (plugBody.success && Array.isArray(plugBody.data)) {
-          for (const plugin of plugBody.data) {
-            if (plugin.providerId) providerSet.add(plugin.providerId);
-          }
-        }
-      } catch {
-        // Fallback gracefully if plugins cannot be queried
-      }
-
       // Each provider lands in the catalog as soon as it answers, so a slow
       // one (OpenCode shells out to its CLI) cannot hold back the others.
       await Promise.all(
-        Array.from(providerSet).map(async (p) => {
+        PROVIDERS.map(async (p) => {
           try {
             const response = await api.providers.models(p);
             const body = (await response.json()) as ProviderModelsApiResponse;
@@ -233,7 +205,7 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
               return;
             }
 
-            setProviderModelCatalog((previous) => ({ ...previous, [p as LLMProvider]: models }));
+            setProviderModelCatalog((previous) => ({ ...previous, [p]: models }));
           } catch (error) {
             console.error(`Error loading ${p} models:`, error);
           }
@@ -250,39 +222,32 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     void loadProviderModels();
   }, [loadProviderModels]);
 
-  const loadCapabilities = useCallback(async () => {
-    try {
-      const response = await api.providers.capabilities();
-      const body = (await response.json()) as ProviderCapabilitiesApiResponse;
-      if (!body.success || !Array.isArray(body.data?.providers)) {
-        return;
-      }
-
-      const byProvider: Partial<Record<LLMProvider, ProviderCapabilities>> = {};
-      for (const capabilities of body.data.providers) {
-        byProvider[capabilities.provider] = capabilities;
-      }
-      setProviderCapabilities(byProvider);
-    } catch (error) {
-      console.error('Error loading provider capabilities:', error);
-    }
-  }, []);
-
   useEffect(() => {
+    let cancelled = false;
+
+    const loadCapabilities = async () => {
+      try {
+        const response = await api.providers.capabilities();
+        const body = (await response.json()) as ProviderCapabilitiesApiResponse;
+        if (cancelled || !body.success || !Array.isArray(body.data?.providers)) {
+          return;
+        }
+
+        const byProvider: Partial<Record<LLMProvider, ProviderCapabilities>> = {};
+        for (const capabilities of body.data.providers) {
+          byProvider[capabilities.provider] = capabilities;
+        }
+        setProviderCapabilities(byProvider);
+      } catch (error) {
+        console.error('Error loading provider capabilities:', error);
+      }
+    };
+
     void loadCapabilities();
-  }, [loadCapabilities]);
-
-  // Re-fetch models and capabilities whenever plugins change (e.g. agent install/uninstall/enable)
-  useEffect(() => {
-    const handleRefresh = () => {
-      void loadProviderModels();
-      void loadCapabilities();
-    };
-    window.addEventListener('projects:refresh', handleRefresh);
     return () => {
-      window.removeEventListener('projects:refresh', handleRefresh);
+      cancelled = true;
     };
-  }, [loadProviderModels, loadCapabilities]);
+  }, []);
 
   const getPermissionModesForProvider = useCallback((targetProvider: LLMProvider): PermissionMode[] => {
     const capabilityModes = providerCapabilities?.[targetProvider]?.permissionModes;
@@ -381,12 +346,11 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
   }, [getAllowedEffortValues]);
 
   // One reconciliation pass over every provider, mirroring the effort effect
-  // below. This covers built-in providers and all dynamic agent plugins.
+  // below. This was four copy-pasted eleven-line effects, one per provider.
   useEffect(() => {
     const reconciledModels: Partial<Record<LLMProvider, string>> = {};
-    const allProviders = Array.from(new Set([...BUILTIN_PROVIDERS, ...Object.keys(providerModelCatalog)])) as LLMProvider[];
 
-    for (const targetProvider of allProviders) {
+    for (const targetProvider of PROVIDERS) {
       const catalog = providerModelCatalog[targetProvider];
       if (!catalog) {
         continue;
@@ -405,16 +369,15 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     }
 
     if (Object.keys(reconciledModels).length > 0) {
-      setProviderModels((previous) => ({ ...previous, ...reconciledModels } as Record<LLMProvider, string>));
+      setProviderModels((previous) => ({ ...previous, ...reconciledModels }));
     }
   }, [providerModelCatalog, providerModels]);
 
   useEffect(() => {
     const nextEfforts: Partial<Record<LLMProvider, string>> = {};
     let hasUpdates = false;
-    const allProviders = Array.from(new Set([...BUILTIN_PROVIDERS, ...Object.keys(providerModelCatalog)])) as LLMProvider[];
 
-    for (const targetProvider of allProviders) {
+    for (const targetProvider of PROVIDERS) {
       const currentEffort = providerEfforts[targetProvider] ?? DEFAULT_EFFORT_VALUE;
       const nextEffort = reconcileStoredEffort(targetProvider, providerModels[targetProvider], currentEffort);
       if (nextEffort === currentEffort) {
@@ -429,7 +392,7 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     if (hasUpdates) {
       setProviderEfforts((previous) => ({ ...previous, ...nextEfforts }));
     }
-  }, [providerEfforts, providerModels, reconcileStoredEffort, providerModelCatalog]);
+  }, [providerEfforts, providerModels, reconcileStoredEffort]);
 
   useEffect(() => {
     const validModes = getPermissionModesForProvider(provider);

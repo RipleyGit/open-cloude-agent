@@ -5,8 +5,7 @@ import type { NavigateFunction } from 'react-router-dom';
 //----------------- LLM PROVIDER MODEL CATALOG ------------
 
 /** Identifies which coding-agent CLI backs a session, project selection or model list. */
-export type BuiltinLLMProvider = 'claude' | 'cursor' | 'codex' | 'opencode';
-export type LLMProvider = BuiltinLLMProvider | (string & {});
+export type LLMProvider = 'claude' | 'cursor' | 'codex' | 'opencode';
 
 /** One selectable model in a provider's model menu, including its optional reasoning-effort choices. */
 export type ProviderModelOption = {
@@ -1243,47 +1242,15 @@ export type Plugin = {
   description: string;
   author: string;
   icon: string;
-  type: 'react' | 'module' | 'agent' | string;
-  slot: 'tab' | 'agent' | string;
+  type: 'react' | 'module';
+  slot: 'tab';
   entry: string;
   server: string | null;
-  agent?: {
-    id?: string;
-    providerId?: string;
-    displayName?: string;
-    cliName?: string;
-    binary?: string;
-    watchPaths?: string[];
-    models?: Array<string | { value: string; label: string }>;
-    defaultModel?: string;
-  } | null;
   permissions: string[];
   enabled: boolean;
   serverRunning: boolean;
   dirName: string;
   repoUrl: string | null;
-};
-
-export type AgentPluginItem = {
-  name: string;
-  displayName: string;
-  version: string;
-  description: string;
-  author: string;
-  icon: string;
-  type: string;
-  providerId: string;
-  cliName: string;
-  defaultModel?: string;
-  models: Array<{ value: string; label: string; description?: string }>;
-  enabled: boolean;
-  repoUrl: string | null;
-  serverRunning: boolean;
-  cliStatus: {
-    installed: boolean;
-    version: string | null;
-    exitCode: number | null;
-  };
 };
 
 // ---------------------------

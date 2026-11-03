@@ -1,19 +1,7 @@
-import type {
-  AgentCategory,
-  AgentContextByProvider,
-  AgentPluginItem,
-  AgentProvider,
-  AgentSettingsProject,
-  ClaudePermissionsState,
-  CodexPermissionMode,
-  CursorPermissionsState,
-  McpProject,
-  SkillsProject,
-} from '@/shared/types';
+import type { AgentCategory, AgentContextByProvider, AgentProvider, AgentSettingsProject, ClaudePermissionsState, CodexPermissionMode, CursorPermissionsState, McpProject, SkillsProject } from '@/shared/types';
 import { McpServers } from '@/modules/mcp';
 import { ProviderSkills } from '@/modules/skills';
 import AccountContent from '@/modules/settings/tabs/agents-settings/sections/content/AccountContent';
-import AgentPluginContent from '@/modules/settings/tabs/agents-settings/sections/content/AgentPluginContent';
 import PermissionsContent from '@/modules/settings/tabs/agents-settings/sections/content/PermissionsContent';
 
 type AgentCategoryContentSectionProps = {
@@ -27,19 +15,6 @@ type AgentCategoryContentSectionProps = {
   codexPermissionMode: CodexPermissionMode;
   onCodexPermissionModeChange: (value: CodexPermissionMode) => void;
   projects: AgentSettingsProject[];
-  selectedAgentPlugin?: AgentPluginItem | null;
-  onRefreshAgentPlugins?: () => Promise<void>;
-  onUpdateAgentPlugin?: (name: string) => Promise<{ success: boolean; error?: string }>;
-  onToggleAgentPlugin?: (name: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>;
-  onUninstallAgentPlugin?: (name: string) => Promise<{ success: boolean; error?: string }>;
-};
-
-const DEFAULT_AUTH_STATUS = {
-  authenticated: false,
-  email: null,
-  method: null,
-  error: null,
-  loading: false,
 };
 
 /** Rendered by AgentsSettingsTab to show the panel for the selected provider and category. */
@@ -54,34 +29,16 @@ export default function AgentCategoryContentSection({
   codexPermissionMode,
   onCodexPermissionModeChange,
   projects,
-  selectedAgentPlugin,
-  onRefreshAgentPlugins,
-  onUpdateAgentPlugin,
-  onToggleAgentPlugin,
-  onUninstallAgentPlugin,
 }: AgentCategoryContentSectionProps) {
-  const currentAgentContext = agentContextById[selectedAgent] || {
-    authStatus: DEFAULT_AUTH_STATUS,
-    onLogin: () => {},
-  };
-
   return (
     <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-4">
-      {selectedCategory === 'account' && selectedAgentPlugin ? (
-        <AgentPluginContent
-          plugin={selectedAgentPlugin}
-          onRefresh={onRefreshAgentPlugins || (async () => {})}
-          onUpdate={onUpdateAgentPlugin || (async () => ({ success: false }))}
-          onToggle={onToggleAgentPlugin || (async () => ({ success: false }))}
-          onUninstall={onUninstallAgentPlugin || (async () => ({ success: false }))}
-        />
-      ) : selectedCategory === 'account' ? (
+      {selectedCategory === 'account' && (
         <AccountContent
           agent={selectedAgent}
-          authStatus={currentAgentContext.authStatus}
-          onLogin={currentAgentContext.onLogin}
+          authStatus={agentContextById[selectedAgent].authStatus}
+          onLogin={agentContextById[selectedAgent].onLogin}
         />
-      ) : null}
+      )}
 
       {selectedCategory === 'permissions' && selectedAgent === 'claude' && (
         <PermissionsContent
