@@ -93,6 +93,53 @@ cloudcli
 
 Open `http://localhost:3001` — all your existing sessions are discovered automatically.
 
+#### From source — Development deployment
+
+Run the frontend and backend from the repository with hot module replacement. Best for hacking on the code.
+
+```
+git clone https://github.com/siteboon/claudecodeui.git
+cd claudecodeui
+npm install
+npm run dev
+```
+
+- **Frontend (Vite dev server):** `http://localhost:5173` — hot reload on every change.
+- **Backend (`tsx`):** `http://localhost:3001` — the API and WebSocket server, restarted by `tsx watch` when server files change. The dev server also serves the Vite dev client so either URL works during development.
+
+Type-check, lint and run tests before pushing:
+
+```
+npm run typecheck
+npm run lint
+npm run test:client
+```
+
+#### From source — Production deployment
+
+Build the static frontend bundle and compile the backend TypeScript, then run the compiled server. The server serves the built client itself, so only one port is needed.
+
+```
+git clone https://github.com/siteboon/claudecodeui.git
+cd claudecodeui
+npm install
+npm run build        # vite build + tsc/tsc-alias for the server
+npm run server       # node dist-server/server/index.js
+```
+
+Open `http://localhost:3001`. Re-run `npm run build` after pulling changes that touch `src/` or `server/`, then restart the `server` process. `npm start` is a shortcut that builds and starts in one command.
+
+**Run the production server behind a process manager** so it survives restarts and logs. With PM2:
+
+```
+npm install -g pm2
+npm run build
+pm2 start npm --name cloudcli -- run server
+pm2 save && pm2 startup
+```
+
+For other deployment targets (systemd, Docker, reverse proxy, TLS, remote setup), see the **[documentation →](https://cloudcli.ai/docs)**.
+
 Visit the **[documentation →](https://cloudcli.ai/docs)** for full configuration options, PM2, remote server setup and more.
 
 #### Docker Sandboxes (Experimental)
