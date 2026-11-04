@@ -84,6 +84,16 @@ test('models command falls back to claude for unsupported providers', async () =
   assert.equal(data.current.provider, 'claude');
 });
 
+test('cost and status commands report the agy provider instead of falling back to claude', async () => {
+  // agy was missing from MODEL_PROVIDERS, so readModelProvider defaulted it to
+  // "claude" and the /cost and /status modals showed "Claude" for an agy session.
+  const cost = await executeCommand('/cost', { provider: 'agy', sessionId: 'session-1', model: 'gemini-flash', tokenUsage: { used: 12345 } });
+  const status = await executeCommand('/status', { provider: 'agy' });
+
+  assert.equal((cost.data as { provider: string }).provider, 'agy');
+  assert.equal((status.data as { provider: string }).provider, 'agy');
+});
+
 test('models command reports the model recorded for the session', async () => {
   const result = await executeCommand(
     '/models',
