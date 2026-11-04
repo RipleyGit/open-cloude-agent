@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { LLMProviderLogo } from '@/shared/ui';
-import type { AppTab, Project, ProjectSession } from '@/shared/types';
+import type { AgentProvider, AppTab, Project, ProjectSession, SettingsMainTab } from '@/shared/types';
 import { usePlugins } from '@/modules/plugins';
 import { getSessionTitle } from '@/shared/utils';
 import { useSessionTitleRename } from '@/modules/project-workspace/hooks/useSessionTitleRename';
@@ -13,6 +13,8 @@ type WorkspaceTitleProps = {
   shouldShowTasksTab: boolean;
   /** Persists a new title for a session; resolves false when the backend refuses it. */
   onRenameSession: (sessionId: string, summary: string) => Promise<boolean>;
+  /** Opens the settings dialog. The header's provider icon uses it to jump to that agent's settings tab. */
+  onShowSettings?: (tab?: SettingsMainTab, initialAgent?: AgentProvider) => void;
 };
 
 function getTabTitle(activeTab: AppTab, shouldShowTasksTab: boolean, t: (key: string) => string, pluginDisplayName?: string) {
@@ -50,6 +52,7 @@ export default function WorkspaceTitle({
   selectedSession,
   shouldShowTasksTab,
   onRenameSession,
+  onShowSettings,
 }: WorkspaceTitleProps) {
   const { t } = useTranslation();
   const { plugins } = usePlugins();
@@ -61,6 +64,7 @@ export default function WorkspaceTitle({
   const showSessionIcon = activeTab === 'chat' && Boolean(selectedSession);
   const showChatNewSession = activeTab === 'chat' && !selectedSession;
   const sessionTitle = selectedSession ? getSessionTitle(selectedSession) : '';
+  const sessionProvider = selectedSession?.__provider;
 
   const {
     isEditing: isRenaming,
@@ -79,10 +83,16 @@ export default function WorkspaceTitle({
 
   return (
     <div className="scrollbar-hide flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-      {showSessionIcon && (
-        <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
-          <LLMProviderLogo provider={selectedSession?.__provider} className="h-4 w-4" />
-        </div>
+      {showSessionIcon && sessionProvider && (
+        <button
+          type="button"
+          onClick={() => onShowSettings?.('agents', sessionProvider)}
+          aria-label={t('mainContent.agentSettings', { provider: sessionProvider, defaultValue: 'Open {{provider}} agent settings' })}
+          title={t('mainContent.agentSettings', { provider: sessionProvider, defaultValue: 'Open {{provider}} agent settings' })}
+          className="flex h-5 w-5 flex-shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-accent/70 hover:ring-1 hover:ring-border"
+        >
+          <LLMProviderLogo provider={sessionProvider} className="h-4 w-4" />
+        </button>
       )}
 
       <div className="min-w-0 flex-1">

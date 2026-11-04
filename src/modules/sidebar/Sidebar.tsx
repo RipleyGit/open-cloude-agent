@@ -8,7 +8,7 @@ import { useSidebarController } from '@/modules/sidebar/hooks/useSidebarControll
 import { useTaskMaster, useTasksSettings } from '@/modules/task-master';
 import { usePaletteOps } from '@/modules/command-palette';
 import { useBackgroundSessionIdSet, useBusySessionIdSet } from '@/shared/context/SessionProtectionContext';
-import type { LLMProvider, LoadingProgress, MCPServerStatus, Project, ProjectSession, SidebarProjectListProps } from '@/shared/types';
+import type { AgentProvider, LLMProvider, LoadingProgress, MCPServerStatus, Project, ProjectSession, SidebarProjectListProps } from '@/shared/types';
 import SidebarCollapsed from '@/modules/sidebar/SidebarCollapsed';
 import SidebarContent from '@/modules/sidebar/SidebarContent';
 import SidebarModals from '@/modules/sidebar/SidebarModals';
@@ -32,6 +32,7 @@ type SidebarProps = {
   onShowSettings: () => void;
   showSettings: boolean;
   settingsInitialTab: string;
+  settingsInitialAgent: AgentProvider | null;
   onCloseSettings: () => void;
   isMobile: boolean;
 };
@@ -59,6 +60,7 @@ function Sidebar({
   onShowSettings,
   showSettings,
   settingsInitialTab,
+  settingsInitialAgent,
   onCloseSettings,
   isMobile,
 }: SidebarProps) {
@@ -243,6 +245,7 @@ function Sidebar({
           projects={projects}
         showSettings={showSettings}
         settingsInitialTab={settingsInitialTab}
+        settingsInitialAgent={settingsInitialAgent}
         onCloseSettings={onCloseSettings}
         showNewProject={showNewProject}
         onCloseNewProject={() => setShowNewProject(false)}

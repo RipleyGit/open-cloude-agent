@@ -4,6 +4,7 @@ import type { NavigateFunction } from 'react-router-dom';
 import { api } from '@/shared/api';
 import type { ServerEvent,
   AppTab,
+  AgentProvider,
   LLMProvider,
   LoadingProgress,
   Project,
@@ -404,6 +405,10 @@ export function useProjectsState({
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<LoadingProgress | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  // Which agent (Claude/Cursor/Codex/etc.) the agents tab should open
+  // preselected, when the caller knows the relevant provider (e.g. a click on
+  // the chat's provider icon). null leaves AgentsSettingsTab's own default.
+  const [settingsInitialAgent, setSettingsInitialAgent] = useState<AgentProvider | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState('agents');
   const [externalMessageUpdate, setExternalMessageUpdate] = useState(0);
   /**
@@ -688,8 +693,9 @@ export function useProjectsState({
     }
   }, []);
 
-  const openSettings = useCallback((tab = 'tools') => {
+  const openSettings = useCallback((tab = 'tools', initialAgent?: AgentProvider) => {
     setSettingsInitialTab(tab);
+    setSettingsInitialAgent(initialAgent ?? null);
     setShowSettings(true);
   }, []);
 
@@ -1268,6 +1274,7 @@ export function useProjectsState({
       onShowSettings: () => setShowSettings(true),
       showSettings,
       settingsInitialTab,
+      settingsInitialAgent,
       onCloseSettings: () => setShowSettings(false),
       isMobile,
     }),
@@ -1285,6 +1292,7 @@ export function useProjectsState({
       loadingProgress,
       projects,
       settingsInitialTab,
+      settingsInitialAgent,
       selectedProject,
       selectedSession,
       showSettings,
@@ -1301,6 +1309,7 @@ export function useProjectsState({
     loadingProgress,
     showSettings,
     settingsInitialTab,
+    settingsInitialAgent,
     externalMessageUpdate,
     newSessionTrigger,
     setActiveTab,

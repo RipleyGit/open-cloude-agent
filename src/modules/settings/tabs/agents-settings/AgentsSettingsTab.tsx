@@ -17,6 +17,8 @@ type AgentsSettingsTabProps = {
   codexPermissionMode: CodexPermissionMode;
   onCodexPermissionModeChange: (value: CodexPermissionMode) => void;
   projects: AgentSettingsProject[];
+  /** Agent to open preselected; null keeps the default. Set when the caller arrives from a specific provider's context. */
+  initialAgent?: AgentProvider | null;
 };
 
 /** Rendered by Settings for the "agents" tab, hosting per-provider account, permission, MCP and skill settings. */
@@ -30,8 +32,9 @@ export default function AgentsSettingsTab({
   codexPermissionMode,
   onCodexPermissionModeChange,
   projects,
+  initialAgent = null,
 }: AgentsSettingsTabProps) {
-  const [selectedAgent, setSelectedAgent] = useState<AgentProvider>('claude');
+  const [selectedAgent, setSelectedAgent] = useState<AgentProvider>(initialAgent ?? 'claude');
   const [selectedCategory, setSelectedCategory] = useState<AgentCategory>('account');
   const visibleCategories = useMemo<AgentCategory[]>(() => (
     selectedAgent === 'opencode'

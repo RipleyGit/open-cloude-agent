@@ -8,7 +8,7 @@ import { PluginTabContent } from '@/modules/plugins';
 import { BrowserUsePanel, useBrowserUseEnabled } from '@/modules/browser-use';
 import { usePaletteOpsRegister } from '@/modules/command-palette';
 import { TaskMasterPanel, useTaskMasterProjectSync, useTasksSettings } from '@/modules/task-master';
-import type { AppTab, DirectoryRevealRequest, Project, ProjectSession, SessionEstablishedContext, SessionNavigationOptions, SettingsMainTab } from '@/shared/types';
+import type { AgentProvider, AppTab, DirectoryRevealRequest, Project, ProjectSession, SessionEstablishedContext, SessionNavigationOptions, SettingsMainTab } from '@/shared/types';
 import { useUiPreferences } from '@/shared/context/UiPreferencesContext';
 import { useFileOpenResolver } from '@/modules/project-workspace/hooks/useFileOpenResolver';
 import { EditorSidebar, useEditorSidebar } from '@/modules/code-editor';
@@ -29,7 +29,7 @@ type WorkspaceMainProps = {
   isLoading: boolean;
   onNavigateToSession: (targetSessionId: string, options?: SessionNavigationOptions) => void;
   onSessionEstablished: (sessionId: string, context: SessionEstablishedContext) => void;
-  onShowSettings: (tab?: SettingsMainTab) => void;
+  onShowSettings: (tab?: SettingsMainTab, initialAgent?: AgentProvider) => void;
   externalMessageUpdate: number;
   newSessionTrigger: number;
   /** Switches the app to another project — used by the git panel's Worktrees view. */
@@ -158,6 +158,7 @@ function WorkspaceMain({
         isMobile={isMobile}
         onMenuClick={onMenuClick}
         onRenameSession={onRenameSession}
+        onShowSettings={onShowSettings}
       />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">

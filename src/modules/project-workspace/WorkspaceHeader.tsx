@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { AppTab, Project, ProjectSession } from '@/shared/types';
+import type { AgentProvider, AppTab, Project, ProjectSession, SettingsMainTab } from '@/shared/types';
 import { cn } from '@/shared/utils';
 import MobileMenuButton from '@/modules/project-workspace/MobileMenuButton';
 import WorkspaceConnectionStatus from '@/modules/project-workspace/WorkspaceConnectionStatus';
@@ -20,6 +20,8 @@ type WorkspaceHeaderProps = {
   onMenuClick: () => void;
   /** Persists a new title for a session; resolves false when the backend refuses it. */
   onRenameSession: (sessionId: string, summary: string) => Promise<boolean>;
+  /** Opens the settings dialog. The header's provider icon uses it to jump to that agent's settings tab. */
+  onShowSettings?: (tab?: SettingsMainTab, initialAgent?: AgentProvider) => void;
 };
 
 /** Rendered by WorkspaceMain to show the workspace title and chat connection status alongside the scrollable tab bar. */
@@ -33,6 +35,7 @@ export default function WorkspaceHeader({
   isMobile,
   onMenuClick,
   onRenameSession,
+  onShowSettings,
 }: WorkspaceHeaderProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -106,6 +109,7 @@ export default function WorkspaceHeader({
             selectedSession={selectedSession}
             shouldShowTasksTab={shouldShowTasksTab}
             onRenameSession={onRenameSession}
+            onShowSettings={onShowSettings}
           />
           <WorkspaceConnectionStatus />
         </div>

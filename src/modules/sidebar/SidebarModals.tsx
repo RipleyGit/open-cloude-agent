@@ -6,7 +6,7 @@ import type { TFunction } from 'i18next';
 import { Button } from '@/shared/ui';
 import { Settings } from '@/modules/settings';
 import { VersionUpgradeModal } from '@/modules/version-upgrade';
-import type { InstallMode, PendingSidebarDeletion, Project, ReleaseInfo, SettingsProject } from '@/shared/types';
+import type { AgentProvider, InstallMode, PendingSidebarDeletion, Project, ReleaseInfo, SettingsProject } from '@/shared/types';
 import { normalizeProjectForSettings } from '@/modules/sidebar/utils/sidebarProjectFormatting';
 import { ProjectCreationWizard } from '@/modules/project-creation-wizard';
 
@@ -14,6 +14,7 @@ type SidebarModalsProps = {
   projects: Project[];
   showSettings: boolean;
   settingsInitialTab: string;
+  settingsInitialAgent: AgentProvider | null;
   onCloseSettings: () => void;
   showNewProject: boolean;
   onCloseNewProject: () => void;
@@ -38,6 +39,7 @@ type TypedSettingsProps = {
   onClose: () => void;
   projects: SettingsProject[];
   initialTab: string;
+  initialAgent: AgentProvider | null;
 };
 
 const SettingsComponent = Settings as (props: TypedSettingsProps) => JSX.Element;
@@ -51,6 +53,7 @@ export default function SidebarModals({
   projects,
   showSettings,
   settingsInitialTab,
+  settingsInitialAgent,
   onCloseSettings,
   showNewProject,
   onCloseNewProject,
@@ -92,6 +95,7 @@ export default function SidebarModals({
             onClose={onCloseSettings}
             projects={settingsProjects}
             initialTab={settingsInitialTab}
+            initialAgent={settingsInitialAgent}
           />,
           document.body,
         )}

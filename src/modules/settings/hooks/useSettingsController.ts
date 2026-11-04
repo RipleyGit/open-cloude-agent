@@ -121,7 +121,6 @@ const normalizeNotificationPreferences = (
 
 export function useSettingsController({ isOpen, initialTab }: UseSettingsControllerArgs) {
   const { isDarkMode, toggleDarkMode } = useTheme() as ThemeContextValue;
-  const closeTimerRef = useRef<number | null>(null);
 
   const [activeTab, setActiveTab] = useState<SettingsMainTab>(() => normalizeMainTab(initialTab));
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
@@ -299,6 +298,13 @@ export function useSettingsController({ isOpen, initialTab }: UseSettingsControl
   // Auto-save permissions and sort order with debounce
   const autoSaveTimerRef = useRef<number | null>(null);
   const isInitialLoadRef = useRef(true);
+  // Latest saveSettings, so the unmount cleanup can flush a pending debounced
+  // save without capturing the stale first-render closure (which held the
+  // initial empty permissions before loadSettings populated them).
+  const saveSettingsRef = useRef(saveSettings);
+  useEffect(() => {
+    saveSettingsRef.current = saveSettings;
+  }, [saveSettings]);
 
   useEffect(() => {
     // Skip auto-save on initial load (settings are being loaded from the store)
@@ -339,14 +345,15 @@ export function useSettingsController({ isOpen, initialTab }: UseSettingsControl
     }
   }, [isOpen]);
 
+  // On unmount — which is how the settings dialog closes (SidebarModals mounts
+  // Settings only while showSettings is true) — flush a pending debounced save
+  // instead of dropping it. A user who toggles a permission and closes within
+  // the 500ms debounce window would otherwise lose that edit.
   useEffect(() => () => {
-    if (closeTimerRef.current !== null) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
     if (autoSaveTimerRef.current !== null) {
       window.clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
+      void saveSettingsRef.current();
     }
   }, []);
 

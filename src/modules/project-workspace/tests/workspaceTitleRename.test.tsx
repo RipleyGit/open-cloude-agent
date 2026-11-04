@@ -58,6 +58,7 @@ const renderTitle = (overrides: { selectedSession?: ProjectSession | null; activ
     selectedSession={overrides.selectedSession === undefined ? session : overrides.selectedSession}
     shouldShowTasksTab={false}
     onRenameSession={onRenameSession}
+    onShowSettings={() => undefined}
   />,
 );
 
@@ -176,6 +177,24 @@ test('a refused rename is reported the way the sidebar reports it', async () => 
 
   assert.deepEqual(alertSpy.mock.calls, [['sidebar:messages.renameSessionFailed']]);
   assert.equal(queryRenameInput(), null);
+});
+
+test('the header provider icon opens that agent\'s settings tab preselected', () => {
+  const onShowSettings = vi.fn<(tab?: string, initialAgent?: string) => void>();
+  render(
+    <WorkspaceTitle
+      activeTab="chat"
+      selectedProject={project}
+      selectedSession={session}
+      shouldShowTasksTab={false}
+      onRenameSession={onRenameSession}
+      onShowSettings={onShowSettings}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'mainContent.agentSettings' }));
+
+  assert.deepEqual(onShowSettings.mock.calls, [['agents', 'claude']]);
 });
 
 test('the title is not editable without a session or off the chat tab', () => {

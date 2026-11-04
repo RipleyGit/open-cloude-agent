@@ -17,13 +17,15 @@ import { PluginSettingsTab } from '@/modules/plugins';
 import AboutTab from '@/modules/settings/tabs/AboutTab';
 import { useSettingsController } from '@/modules/settings/hooks/useSettingsController';
 import { useWebPush } from '@/modules/settings/hooks/useWebPush';
-import type { AgentSettingsProject } from '@/shared/types';
+import type { AgentProvider, AgentSettingsProject } from '@/shared/types';
 
 type SettingsProps = {
   isOpen: boolean;
   onClose: () => void;
   projects?: AgentSettingsProject[];
   initialTab?: string;
+  /** Agent the agents tab opens preselected; null keeps AgentsSettingsTab's default. */
+  initialAgent?: AgentProvider | null;
 };
 
 type DesktopNotificationsState = {
@@ -35,7 +37,7 @@ type DesktopNotificationsState = {
 };
 
 /** Exported as the settings module's public entry point and rendered by the sidebar module as its settings dialog. */
-function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }: SettingsProps) {
+function Settings({ isOpen, onClose, projects = [], initialTab = 'agents', initialAgent = null }: SettingsProps) {
   const { t } = useTranslation('settings');
   const desktopNotificationsBridge = useMemo(() => (
     typeof window === 'undefined'
@@ -245,6 +247,7 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }: Set
                   codexPermissionMode={codexPermissionMode}
                   onCodexPermissionModeChange={setCodexPermissionMode}
                   projects={projects}
+                  initialAgent={initialAgent}
                 />
               )}
 
