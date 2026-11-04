@@ -52,6 +52,39 @@ const tableExists = (db: Database, tableName: string): boolean =>
 const getTableInfo = (db: Database, tableName: string): TableInfoRow[] =>
   db.prepare(`PRAGMA table_info(${tableName})`).all() as TableInfoRow[];
 
+/**
+ * Rebuilds the provider model library when an older CHECK constraint does not
+ * recognize a newly supported provider. SQLite cannot alter a CHECK clause in
+ * place, so the schema is recreated inside one transaction and all rows are
+ * copied unchanged.
+ */
+const migrateProviderModelsProviderConstraint = (db: Database): void => {
+  if (!tableExists(db, 'provider_models')) {
+    db.exec(PROVIDER_MODELS_TABLE_SCHEMA_SQL);
+    return;
+  }
+
+  const schema = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'provider_models'",
+  ).get() as { sql?: string } | undefined;
+  if (schema?.sql?.includes("'agy'")) {
+    return;
+  }
+
+  console.log('Running migration: Adding agy to provider_models provider constraint');
+  db.exec(`
+    ALTER TABLE provider_models RENAME TO provider_models_legacy;
+    ${PROVIDER_MODELS_TABLE_SCHEMA_SQL}
+    INSERT INTO provider_models (
+      id, provider, model_id, model_name, sort_order, created_at, updated_at, effort_values, effort_default
+    )
+    SELECT
+      id, provider, model_id, model_name, sort_order, created_at, updated_at, effort_values, effort_default
+    FROM provider_models_legacy;
+    DROP TABLE provider_models_legacy;
+  `);
+};
+
 const migrateLegacySessionNames = (db: Database): void => {
   const hasLegacySessionNamesTable = tableExists(db, 'session_names');
   const hasSessionsTable = tableExists(db, 'sessions');
@@ -512,7 +545,7 @@ export const runMigrations = (db: Database) => {
     db.exec(NOTIFICATION_CHANNEL_ENDPOINTS_TABLE_SCHEMA_SQL);
     db.exec('CREATE INDEX IF NOT EXISTS idx_notification_channel_endpoints_user_channel ON notification_channel_endpoints(user_id, channel)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_notification_channel_endpoints_enabled ON notification_channel_endpoints(enabled)');
-    db.exec(PROVIDER_MODELS_TABLE_SCHEMA_SQL);
+  migrateProviderModelsProviderConstraint(db);
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_provider_models_provider_order
       ON provider_models(provider, sort_order, id)

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import { LLMProviderLogo, PillBar, Pill } from '@/shared/ui';
 import type { AgentContextByProvider, AgentProvider } from '@/shared/types';
 
@@ -23,6 +25,8 @@ export default function AgentSelectorSection({
   onSelectAgent,
   agentContextById,
 }: AgentSelectorSectionProps) {
+  const { t } = useTranslation('settings');
+
   return (
     <div className="flex-shrink-0 border-b border-border px-3 py-2 md:px-4 md:py-3">
       <PillBar className="w-full md:w-auto">
@@ -30,7 +34,19 @@ export default function AgentSelectorSection({
           const dotColor =
             agent === 'claude' ? 'bg-blue-500' :
             agent === 'cursor' ? 'bg-purple-500' :
-            agent === 'opencode' ? 'bg-zinc-500' : 'bg-foreground/60';
+            agent === 'opencode' ? 'bg-zinc-500' :
+            agent === 'agy' ? 'bg-emerald-500' : 'bg-foreground/60';
+          const authStatus = agentContextById[agent].authStatus;
+          const connectionStatus = authStatus.loading
+            ? t('agents.authStatus.checking')
+            : authStatus.authenticated
+              ? t('agents.authStatus.connected')
+              : t('agents.authStatus.disconnected');
+          const connectionDotClass = authStatus.loading
+            ? 'animate-pulse bg-amber-500'
+            : authStatus.authenticated
+              ? dotColor
+              : 'bg-muted-foreground/60';
 
           return (
             <Pill
@@ -41,9 +57,11 @@ export default function AgentSelectorSection({
             >
               <LLMProviderLogo provider={agent} className="h-4 w-4 flex-shrink-0" />
               <span className="truncate">{AGENT_NAMES[agent]}</span>
-              {agentContextById[agent].authStatus.authenticated && (
-                <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${dotColor}`} />
-              )}
+              <span
+                aria-label={connectionStatus}
+                title={connectionStatus}
+                className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${connectionDotClass}`}
+              />
             </Pill>
           );
         })}

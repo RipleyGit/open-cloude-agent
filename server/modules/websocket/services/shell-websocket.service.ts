@@ -250,6 +250,13 @@ function buildShellCommand(
     return otherProgram(initialCommand || 'opencode');
   }
 
+  if (provider === 'agy') {
+    if (resumeSessionId) {
+      return otherProgram(`agy --conversation "${resumeSessionId}"`);
+    }
+    return otherProgram(initialCommand || 'agy');
+  }
+
   // Launching with the flag is what unlocks "bypass permissions" in the CLI's
   // shift+tab permission-mode cycle; it cannot be enabled from inside a
   // session started without it.
@@ -787,9 +794,11 @@ export function handleShellConnection(
               ? 'Cursor'
               : provider === 'codex'
                 ? 'Codex'
-                : provider === 'opencode'
-                    ? 'OpenCode'
-                  : 'Claude';
+            : provider === 'opencode'
+              ? 'OpenCode'
+              : provider === 'agy'
+                ? 'Antigravity'
+                : 'Claude';
           welcomeMsg = hasSession && resumeSessionId
             ? `\x1b[36mResuming ${providerName} session ${resumeSessionId} in: ${projectPath}\x1b[0m\r\n`
             : `\x1b[36mStarting new ${providerName} session in: ${projectPath}\x1b[0m\r\n`;

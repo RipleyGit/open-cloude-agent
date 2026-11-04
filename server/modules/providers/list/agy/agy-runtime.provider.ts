@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
@@ -15,6 +16,28 @@ const reportRunFailed = notifyRunFailed as (input: AnyRecord) => void;
 const reportRunStopped = notifyRunStopped as (input: AnyRecord) => void;
 
 const PROVIDER = 'agy' as const;
+const AGY_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+
+/**
+ * Resolves the path to the Antigravity CLI executable.
+ * Prefers ~/.antigravity/antigravity/bin/agy if present, falling back to agy on PATH.
+ */
+function resolveAgyExecutable(): string {
+  const customPath = path.join(os.homedir(), '.antigravity', 'antigravity', 'bin', 'agy');
+  if (fs.existsSync(customPath)) {
+    return customPath;
+  }
+  return 'agy';
+}
+
+/**
+ * Converts the composer's shared default sentinel into an omitted Agy flag.
+ * Agy rejects `--effort default`, while omitting the flag selects the model's
+ * configured default effort level.
+ */
+function resolveAgyEffort(value: unknown): string | undefined {
+  return typeof value === 'string' && AGY_EFFORT_LEVELS.has(value) ? value : undefined;
+}
 
 /**
  * Live execution adapter for Antigravity CLI (`agy`).
@@ -50,7 +73,7 @@ export class AgyRuntime implements IProviderRuntime {
         args.push('--model', resolvedModel);
       }
 
-      const effort = typeof options.effort === 'string' && options.effort ? options.effort : undefined;
+      const effort = resolveAgyEffort(options.effort);
       if (effort) {
         args.push('--effort', effort);
       }
@@ -65,7 +88,7 @@ export class AgyRuntime implements IProviderRuntime {
           ? options.projectPath
           : process.cwd();
 
-      const proc = crossSpawn('agy', args, {
+      const proc = crossSpawn(resolveAgyExecutable(), args, {
         cwd,
         env: {
           ...process.env,

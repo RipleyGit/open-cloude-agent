@@ -401,6 +401,9 @@
       },
       "opencode": {
         "description": "OpenCode CLI assistant"
+      },
+      "agy": {
+        "description": "Antigravity CLI agent"
       }
     },
     "connectionStatus": "Connection Status",
@@ -455,6 +458,51 @@
       "reAuthDescription": "Sign in with a different account or refresh credentials",
       "button": "Login",
       "reLoginButton": "Re-login"
+    },
+    "accountDetails": {
+      "title": "Account & Environment Configuration",
+      "authType": "Auth Mode",
+      "accountName": "User Name",
+      "email": "Account / Email",
+      "installPath": "Installation Path",
+      "subscriptionTier": "Subscription Tier",
+      "projectId": "Project ID",
+      "baseUrl": "API Gateway Base URL",
+      "defaultModel": "Default Model",
+      "apiKey": "API Key",
+      "accountActive": "Logged in & active",
+      "apiKeyActive": "Connected & active"
+    },
+    "quota": {
+      "title": "Supported Models & Usage Quota",
+      "subtitle": "Antigravity supported models and real-time quota retrieved from the current login account",
+      "refresh": "Refresh Quota",
+      "refreshing": "Refreshing...",
+      "totalModels": "{{count}} supported models",
+      "averageQuota": "Average available quota: {{percent}}%",
+      "searchPlaceholder": "Search model by name or ID...",
+      "filterAll": "All ({{count}})",
+      "filterClaude": "Claude",
+      "filterGemini3": "Gemini 3",
+      "filterGemini2": "Gemini 2.5",
+      "filterOther": "Other Models",
+      "remainingQuota": "Remaining Quota",
+      "resetTime": "Resets: {{time}}",
+      "resetFull": "Full quota available (100%)",
+      "tagRecommended": "Recommended",
+      "tagThinking": "Thinking",
+      "tagImages": "Multimodal",
+      "status": "Quota Status",
+      "unlimited": "Unlimited Quota",
+      "limited": "Limited Quota",
+      "totalUsed": "Total Consumed",
+      "totalAvailable": "Remaining Balance",
+      "expiresAt": "Expiration",
+      "neverExpires": "Permanent (No Expiry)",
+      "modelPermissions": "Model Access",
+      "allModels": "All Models Available (Unlimited)",
+      "lastUpdated": "Updated at: {{time}}",
+      "unavailable": "Quota details not available from provider gateway"
     },
     "error": "Error: {{error}}"
   },

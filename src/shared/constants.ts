@@ -162,7 +162,7 @@ export const MCP_SUPPORTS_WORKING_DIRECTORY: Record<McpProvider, boolean> = {
  * toggle row (which appends `cursor-pointer`) stay visually identical.
  */
 export const SETTING_ROW_CLASS =
-  'flex items-center justify-between p-3 rounded-lg bg-muted/60 hover:bg-accent transition-colors border border-transparent hover:border-border';
+  'flex items-center justify-between rounded-lg border border-transparent bg-muted/45 px-2.5 py-2 transition-colors hover:border-border hover:bg-accent';
 
 // ---------------------------
 

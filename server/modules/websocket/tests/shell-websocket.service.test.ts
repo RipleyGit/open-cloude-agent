@@ -195,6 +195,22 @@ test('bypassPermissions carries through to resumed claude sessions', () => {
   }
 });
 
+test('Antigravity Shell launches agy for new and resumed sessions', () => {
+  const newSession = spawnRecorder();
+  launch(newSession.dependencies, { provider: 'agy' });
+
+  const resumedSession = spawnRecorder('agy-conversation-id');
+  launch(resumedSession.dependencies, { provider: 'agy', hasSession: true });
+
+  assert.equal(newSession.calls.length, 1);
+  assert.equal(resumedSession.calls.length, 1);
+
+  if (os.platform() !== 'win32') {
+    assert.equal(newSession.calls[0]?.command, 'agy');
+    assert.equal(resumedSession.calls[0]?.command, 'agy --conversation "agy-conversation-id"');
+  }
+});
+
 test('a missing project directory is reported as an error frame and starts no pty', () => {
   const socket = createFakeSocket();
   let spawnCount = 0;

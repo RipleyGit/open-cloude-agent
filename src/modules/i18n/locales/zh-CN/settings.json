@@ -379,6 +379,9 @@
       },
       "opencode": {
         "description": "OpenCode CLI 助手"
+      },
+      "agy": {
+        "description": "Antigravity CLI 智能体"
       }
     },
     "connectionStatus": "连接状态",
@@ -420,6 +423,51 @@
       "reAuthDescription": "使用其他账户登录或刷新凭据",
       "button": "登录",
       "reLoginButton": "重新登录"
+    },
+    "accountDetails": {
+      "title": "当前账户与环境配置",
+      "authType": "认证模式",
+      "accountName": "用户名称",
+      "email": "登录账号 / 邮箱",
+      "installPath": "安装路径",
+      "subscriptionTier": "订阅级别",
+      "projectId": "关联项目 ID",
+      "baseUrl": "API 网关 Base URL",
+      "defaultModel": "默认模型",
+      "apiKey": "API 密钥",
+      "accountActive": "账号已登录生效",
+      "apiKeyActive": "已连接并处于激活状态"
+    },
+    "quota": {
+      "title": "模型支持与使用额度",
+      "subtitle": "根据当前登录账号获取的 Antigravity 支持模型及其实时额度",
+      "refresh": "刷新额度",
+      "refreshing": "正在刷新...",
+      "totalModels": "共 {{count}} 个可用模型",
+      "averageQuota": "平均可用额度: {{percent}}%",
+      "searchPlaceholder": "搜索模型名称或 ID...",
+      "filterAll": "全部 ({{count}})",
+      "filterClaude": "Claude",
+      "filterGemini3": "Gemini 3",
+      "filterGemini2": "Gemini 2.5",
+      "filterOther": "其他模型",
+      "remainingQuota": "剩余额度",
+      "resetTime": "重置: {{time}}",
+      "resetFull": "全额可用 (100%)",
+      "tagRecommended": "推荐",
+      "tagThinking": "思考链",
+      "tagImages": "多模态",
+      "status": "额度状态",
+      "unlimited": "无限额度 (Unlimited)",
+      "limited": "有限额度",
+      "totalUsed": "累计已消耗",
+      "totalAvailable": "剩余可用额度",
+      "expiresAt": "有效期限",
+      "neverExpires": "永久有效",
+      "modelPermissions": "可用模型范围",
+      "allModels": "全部可用 (无限制)",
+      "lastUpdated": "更新时间: {{time}}",
+      "unavailable": "未获取到额度数据或网关不支持查询"
     },
     "error": "错误：{{error}}"
   },

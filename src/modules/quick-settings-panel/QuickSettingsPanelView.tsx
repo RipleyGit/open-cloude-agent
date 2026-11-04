@@ -28,7 +28,7 @@ type QuickSettingsPanelViewProps = {
   onInsertCommand?: (command: SlashCommand) => void;
 };
 
-/** Exported as QuickSettingsPanel and rendered by the project-workspace module as its quick settings drawer — an overlay by default, docked above the chat composer when pinned. */
+/** Exported as QuickSettingsPanel and rendered by project-workspace inside the chat column as a bottom sheet that pushes the transcript upward. */
 function QuickSettingsPanelView({ selectedProject, onInsertCommand }: QuickSettingsPanelViewProps) {
   const { isMobile } = useDeviceSettings({ trackPWA: false });
   const canPin = !isMobile;
@@ -96,8 +96,9 @@ function QuickSettingsPanelView({ selectedProject, onInsertCommand }: QuickSetti
   const handleInsertCommand = useCallback(
     (command: SlashCommand) => {
       onInsertCommand?.(command);
-      // An overlay is in the way of the composer it just filled; a docked panel
-      // is part of the layout and stays.
+      // An unpinned sheet should get out of the way after it inserts a command
+      // into the composer. A pinned sheet stays open as a persistent workspace
+      // control surface.
       if (!isPinned) {
         close();
       }
@@ -105,11 +106,9 @@ function QuickSettingsPanelView({ selectedProject, onInsertCommand }: QuickSetti
     [close, isPinned, onInsertCommand],
   );
 
-  // Escape dismisses an open overlay. The overlay is the topmost layer, so it
-  // must see the key before the handlers underneath it — the chat's
-  // capture-phase abort-on-Escape and the editor's close-on-Escape — and
-  // consume it; window capture runs ahead of both. Keys another layer already
-  // consumed (e.g. the composer's own `/` menu closing) are left alone.
+  // Escape closes an unpinned sheet without touching the rest of the workspace.
+  // Capture phase keeps the chat's Escape handler from aborting a run while the
+  // user is only trying to dismiss Quick Settings.
   useEffect(() => {
     if (!isOpen || isPinned) {
       return undefined;
@@ -164,49 +163,31 @@ function QuickSettingsPanelView({ selectedProject, onInsertCommand }: QuickSetti
     </div>
   );
 
-  const dockedOpen = isPinned && isOpen;
-  const handle = (
-    <QuickSettingsHandle
-      isOpen={isOpen}
-      isDragging={isDragging}
-      placement={dockedOpen ? 'docked' : 'overlay'}
-      style={handleStyle}
-      onClick={handleToggleFromHandle}
-      onMouseDown={startDrag}
-      onTouchStart={startDrag}
-    />
-  );
-
   return (
-    <>
-      {/* The handle is always rendered: absolute against the docked row's top
-          edge when that row exists, fixed to the viewport bottom otherwise
-          (overlay open/closed, or docked-but-collapsed with no row to host it). */}
-      {handle}
-
-      {/* Docked: an in-flow row at the bottom of the chat column while open,
-          gone while collapsed via the handle (the pin is kept). */}
-      {isPinned ? (
-        isOpen && (
-          <div className="relative h-64 w-full flex-shrink-0 border-t border-border bg-background">
-            {panelBody}
-          </div>
-        )
-      ) : (
-        <div
-          className={`fixed bottom-0 left-0 right-0 z-[9999] h-64 w-full transform border-t border-border bg-background shadow-xl transition-transform duration-150 ease-out ${isOpen ? 'translate-y-0' : 'translate-y-full'} ${isMobile ? 'h-72' : ''}`}
+    <div
+      className={`relative flex-shrink-0 overflow-visible transition-[height] duration-200 ease-out ${
+        isOpen ? (isMobile ? 'h-[min(52dvh,30rem)]' : 'h-[min(46dvh,27rem)]') : 'h-0'
+      }`}
+    >
+      {isOpen && (
+        <section
+          aria-label="Quick settings"
+          className="h-full w-full overflow-hidden border-y border-border bg-background shadow-[0_-12px_28px_-20px_rgb(0_0_0_/_0.55)]"
         >
           {panelBody}
-        </div>
+        </section>
       )}
 
-      {isOpen && !isPinned && (
-        <div
-          className="fixed inset-0 z-[9998] bg-background/80 backdrop-blur-sm transition-opacity duration-150 ease-out"
-          onClick={close}
-        />
-      )}
-    </>
+      <QuickSettingsHandle
+        isOpen={isOpen}
+        isDragging={isDragging}
+        placement="workspace"
+        style={handleStyle}
+        onClick={handleToggleFromHandle}
+        onMouseDown={startDrag}
+        onTouchStart={startDrag}
+      />
+    </div>
   );
 }
 

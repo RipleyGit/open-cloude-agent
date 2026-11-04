@@ -60,7 +60,7 @@ const getProviderCommand = ({
   }
 
   if (provider === 'agy') {
-    return 'agy login';
+    return 'agy';
   }
 
   return 'claude --dangerously-skip-permissions /login';

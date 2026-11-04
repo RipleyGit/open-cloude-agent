@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { QuickSettingsHandleStyle } from '@/shared/types';
 
-type QuickSettingsHandlePlacement = 'overlay' | 'docked';
+type QuickSettingsHandlePlacement = 'workspace';
 
 type QuickSettingsHandleProps = {
   isOpen: boolean;
@@ -23,7 +23,7 @@ type QuickSettingsHandleProps = {
   onTouchStart: (event: ReactTouchEvent<HTMLButtonElement>) => void;
 };
 
-/** Rendered by QuickSettingsPanelView as the draggable edge handle that opens and closes the drawer. `overlay` hugs the viewport bottom; `docked` hugs the in-flow panel row's top edge. */
+/** Rendered by QuickSettingsPanelView on the chat column's edge to open and close its in-flow bottom sheet. */
 export default function QuickSettingsHandle({
   isOpen,
   isDragging,
@@ -35,17 +35,10 @@ export default function QuickSettingsHandle({
 }: QuickSettingsHandleProps) {
   const { t } = useTranslation('settings');
 
-  // Overlay: the panel is fixed to the viewport bottom, so the handle tracks
-  // the viewport — above the panel's top border when open, at the very bottom
-  // edge when closed. Docked: the panel is an in-flow row in the chat column,
-  // so the handle is absolute against that row's top border (and straddles it
-  // by half its height via the translate).
-  const placementClass = placement === 'overlay'
-    ? `fixed ${isOpen ? 'bottom-64' : 'bottom-0'}`
-    : 'absolute top-0';
-  const transform = placement === 'overlay'
-    ? 'translateX(-50%)'
-    : 'translate(-50%, -50%)';
+  // The sheet lives in the chat layout, so its trigger stays on that layout's
+  // top edge instead of being fixed to the viewport or covering the sidebar.
+  const placementClass = 'absolute top-0';
+  const transform = 'translate(-50%, -50%)';
   const borderClass = isDragging
     ? 'border-blue-500 dark:border-blue-400'
     : 'border-gray-200 dark:border-gray-700';

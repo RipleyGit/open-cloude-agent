@@ -419,6 +419,8 @@ export const api = {
     capabilities: () => get('/api/providers/capabilities'),
     authStatus: (provider: string) =>
       get(`/api/providers/${encodeURIComponent(provider)}/auth/status`),
+    quota: (provider: string, refresh = false) =>
+      get(`/api/providers/${encodeURIComponent(provider)}/quota${query({ refresh })}`),
     cliStatus: (provider: string) =>
       get(`/api/providers/${encodeURIComponent(provider)}/cli`),
     updateCli: (provider: string) =>

@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 type QuickSettingsPanelHeaderProps = {
   isPinned: boolean;
-  // False on mobile, where the panel is always an overlay and the pin is hidden.
+  // False on mobile, where the sheet cannot be kept permanently expanded.
   canPin: boolean;
   onTogglePin: () => void;
   onClose: () => void;
 };
 
-/** Rendered by QuickSettingsPanelView as the drawer's title bar with the pin toggle and, while it is an overlay, a close button. */
+/** Rendered by QuickSettingsPanelView as the bottom sheet's title bar with the pin toggle and close button. */
 export default function QuickSettingsPanelHeader({
   isPinned,
   canPin,
@@ -38,7 +38,7 @@ export default function QuickSettingsPanelHeader({
             {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
           </button>
         )}
-        {/* A docked panel is collapsed with the edge handle or unpinned, so the close button is overlay-only. */}
+        {/* A pinned sheet is collapsed from its edge handle, preserving the user's always-open preference. */}
         {!isPinned && (
           <button
             type="button"

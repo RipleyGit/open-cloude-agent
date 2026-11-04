@@ -903,6 +903,58 @@ export type ProviderAuthSubscriptionOverride = {
 };
 
 /**
+ * Detailed account and gateway metadata for providers that connect to external or proxy gateways (such as Antigravity).
+ */
+export type ProviderAccountDetails = {
+  authType?: string;
+  accountName?: string | null;
+  email?: string | null;
+  installPath?: string | null;
+  subscriptionTier?: string | null;
+  projectId?: string | null;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+  keyMasked?: string | null;
+};
+
+/**
+ * Model quota item representing an individual model's remaining quota and reset time.
+ */
+export type ProviderModelQuotaItem = {
+  name: string;
+  displayName: string;
+  percentage: number;
+  resetTime?: string | null;
+  resetTimeFormatted?: string | null;
+  supportsThinking?: boolean;
+  supportsImages?: boolean;
+  recommended?: boolean;
+};
+
+/**
+ * Model quota, usage and balance data queried from the provider gateway or local Antigravity store.
+ */
+export type ProviderQuotaData = {
+  unlimited?: boolean;
+  accountName?: string | null;
+  email?: string | null;
+  subscriptionTier?: string | null;
+  models?: ProviderModelQuotaItem[];
+  totalModels?: number;
+  averagePercentage?: number;
+  totalGranted?: number;
+  totalUsed?: number;
+  totalAvailable?: number;
+  totalUsedUsd?: string;
+  totalAvailableUsd?: string;
+  expiresAt?: number | null;
+  expiresAtFormatted?: string;
+  modelLimitsEnabled?: boolean;
+  allowedModels?: string[];
+  fetchedAt: string;
+};
+
+/**
  * Authentication status result returned by provider health checks.
  *
  * This shape is consumed by settings/status endpoints to report installation and
@@ -927,6 +979,14 @@ export type ProviderAuthStatus = {
    * existing consumers that never look for it are unaffected.
    */
   subscriptionOverride?: ProviderAuthSubscriptionOverride;
+  /**
+   * Detailed account/gateway configuration reported by the provider.
+   */
+  accountDetails?: ProviderAccountDetails;
+  /**
+   * Realtime token/model quota and balance data from the provider gateway.
+   */
+  quota?: ProviderQuotaData;
 };
 
 /**

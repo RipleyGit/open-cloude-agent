@@ -1335,6 +1335,52 @@ export type ProviderAuthSubscriptionOverride = {
   subscriptionEmail: string | null;
 };
 
+/** Detailed account and gateway metadata for providers that connect to external or proxy gateways (such as Antigravity). */
+export type ProviderAccountDetails = {
+  authType?: string;
+  accountName?: string | null;
+  email?: string | null;
+  installPath?: string | null;
+  subscriptionTier?: string | null;
+  projectId?: string | null;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+  keyMasked?: string | null;
+};
+
+/** Model quota item representing an individual model's remaining quota and reset time. */
+export type ProviderModelQuotaItem = {
+  name: string;
+  displayName: string;
+  percentage: number;
+  resetTime?: string | null;
+  resetTimeFormatted?: string | null;
+  supportsThinking?: boolean;
+  supportsImages?: boolean;
+  recommended?: boolean;
+};
+
+/** Model quota, usage and balance data queried from the provider gateway or local Antigravity store. */
+export type ProviderQuotaData = {
+  unlimited?: boolean;
+  accountName?: string | null;
+  email?: string | null;
+  subscriptionTier?: string | null;
+  models?: ProviderModelQuotaItem[];
+  totalModels?: number;
+  averagePercentage?: number;
+  totalGranted?: number;
+  totalUsed?: number;
+  totalAvailable?: number;
+  totalUsedUsd?: string;
+  totalAvailableUsd?: string;
+  expiresAt?: number | null;
+  expiresAtFormatted?: string;
+  modelLimitsEnabled?: boolean;
+  allowedModels?: string[];
+  fetchedAt: string;
+};
+
 /** Sign-in state of one LLM provider CLI - whether it is authenticated, the account email and method, plus in-flight loading and error state - polled by the provider-auth module and rendered by the settings and onboarding account views. `subscriptionOverride` is only present when an API key is bypassing a valid subscription login. */
 export type ProviderAuthStatus = {
   authenticated: boolean;
@@ -1345,6 +1391,10 @@ export type ProviderAuthStatus = {
   subscriptionOverride?: ProviderAuthSubscriptionOverride;
   /** Version the provider's CLI printed for `--version`; null when unknown, absent until the server has answered. */
   installedVersion?: string | null;
+  /** Detailed account/gateway configuration reported by the provider. */
+  accountDetails?: ProviderAccountDetails;
+  /** Realtime token/model quota and balance data from the provider gateway. */
+  quota?: ProviderQuotaData;
 };
 
 /** The authentication state of every CLI provider at once, keyed by LLMProvider, so onboarding and settings can render each provider's connected, loading and error state from one object returned by useProviderAuthStatus. */

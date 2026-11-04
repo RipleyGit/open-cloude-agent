@@ -13,11 +13,11 @@ export default function QuickSettingsSection({
   className = '',
 }: QuickSettingsSectionProps) {
   return (
-    <div className={`space-y-2 ${className}`}>
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <section className={`flex min-h-0 flex-col gap-2 rounded-xl border border-border/70 bg-card p-3 shadow-sm ${className}`}>
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {title}
       </h4>
       {children}
-    </div>
+    </section>
   );
 }

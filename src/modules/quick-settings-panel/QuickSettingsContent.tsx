@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 
 import { DarkModeToggle } from '@/shared/ui';
 import { LanguageSelector } from '@/modules/i18n';
-import { SETTING_ROW_CLASS } from '@/shared/constants';
 import type { PreferenceToggleKey, QuickSettingsPreferences } from '@/shared/types';
 import QuickSettingsSection from '@/modules/quick-settings-panel/QuickSettingsSection';
 import QuickSettingsToggleRow from '@/modules/quick-settings-panel/QuickSettingsToggleRow';
@@ -79,9 +78,12 @@ export default function QuickSettingsContent({
   );
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden bg-background p-4">
-      <QuickSettingsSection title={t('quickSettings.sections.appearance')}>
-        <div className={SETTING_ROW_CLASS}>
+    <div className="scrollbar-hide flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain bg-background p-3 pb-4 [-webkit-overflow-scrolling:touch]">
+      <QuickSettingsSection
+        title={t('quickSettings.sections.appearance')}
+        className="w-[15.5rem] min-w-[15.5rem] snap-start"
+      >
+        <div className="flex min-h-11 items-center justify-between rounded-lg border border-border/70 bg-muted/35 px-2.5 py-2">
           <span className="flex items-center gap-2 text-sm text-foreground">
             {isDarkMode ? (
               <Moon className="h-4 w-4 text-muted-foreground" />
@@ -95,11 +97,17 @@ export default function QuickSettingsContent({
         <LanguageSelector compact />
       </QuickSettingsSection>
 
-      <QuickSettingsSection title={t('quickSettings.sections.toolDisplay')}>
+      <QuickSettingsSection
+        title={t('quickSettings.sections.toolDisplay')}
+        className="w-[15.5rem] min-w-[15.5rem] snap-start"
+      >
         {renderToggleRows(TOOL_DISPLAY_TOGGLES)}
       </QuickSettingsSection>
 
-      <QuickSettingsSection title={t('quickSettings.sections.inputSettings')}>
+      <QuickSettingsSection
+        title={t('quickSettings.sections.inputSettings')}
+        className="w-[15.5rem] min-w-[15.5rem] snap-start"
+      >
         {renderToggleRows(inputSettingToggles)}
         <p className="ml-3 text-xs text-muted-foreground">
           {t('quickSettings.sendByCtrlEnterDescription')}

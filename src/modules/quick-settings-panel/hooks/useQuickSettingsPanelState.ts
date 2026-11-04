@@ -18,9 +18,9 @@ export type QuickSettingsPanelState = StoredQuickSettingsPanelState & {
 };
 
 /**
- * `canPin` is false on mobile, where docking makes no sense. It travels with
- * every action whose outcome depends on whether the panel is docked, so a pin
- * stored on desktop is ignored (not erased) while the viewport is narrow.
+ * `canPin` is false on mobile, where a persisted always-open preference is not
+ * useful. It travels with every action whose outcome depends on that preference,
+ * so a desktop choice is ignored (not erased) while the viewport is narrow.
  */
 type QuickSettingsPanelAction =
   | { type: 'close'; canPin: boolean }
@@ -38,10 +38,9 @@ const isQuickSettingsTab = (value: unknown): value is QuickSettingsTab => (
   QUICK_SETTINGS_TABS.includes(value as QuickSettingsTab)
 );
 
-// Docked = pinned somewhere pinning is possible. A docked panel is part of the
-// layout: the backdrop and Escape (`close`) cannot dismiss it; only the edge
-// handle (`toggle`) collapses it, and the pin survives that so the next toggle
-// docks it again.
+// A pinned panel is part of the chat layout: Escape cannot dismiss it; only the
+// edge handle (`toggle`) collapses it, and the preference survives that so the
+// next toggle reopens it in the same place.
 const isDocked = (state: QuickSettingsPanelState, canPin: boolean): boolean => (
   state.pinned && canPin
 );
@@ -107,13 +106,13 @@ export function quickSettingsPanelReducer(
       if (!action.canPin) {
         return state;
       }
-      // Pinning always shows the panel (docked); unpinning leaves it open as
-      // an overlay so the content does not jump away under the cursor.
+      // Pinning always shows the sheet; unpinning leaves it open so the content
+      // does not jump away under the cursor.
       return { ...state, pinned: !state.pinned, isOpen: true };
     case 'leaveDesktop':
-      // The docked column cannot exist on a narrow viewport, and turning it
-      // into a full-screen overlay uninvited would cover the app; hide it and
-      // let the handle bring it back. The pin is kept for the next desktop visit.
+      // Do not restore a desktop always-open sheet uninvited on a narrow
+      // viewport. Hide it and let the handle bring it back; the preference is
+      // kept for the next desktop visit.
       if (!state.pinned || !state.isOpen) {
         return state;
       }
@@ -124,8 +123,8 @@ export function quickSettingsPanelReducer(
 }
 
 /**
- * Builds the initial state from storage: a pinned panel starts open (docked)
- * so a reload restores the layout the user left, an unpinned one starts closed.
+ * Builds the initial state from storage: a pinned panel starts open so a reload
+ * restores the chat layout the user left, an unpinned one starts closed.
  */
 const initializeQuickSettingsPanelState = (canPin: boolean): QuickSettingsPanelState => {
   const stored = readStoredQuickSettingsPanelState();
@@ -139,10 +138,10 @@ type UseQuickSettingsPanelStateOptions = {
 
 /** Used by QuickSettingsPanelView to own the open/pinned/tab state of the drawer and persist the pin and tab choice. */
 export function useQuickSettingsPanelState({ canPin }: UseQuickSettingsPanelStateOptions) {
-  // Whether the panel is showing, whether it is docked and which tab it shows,
-  // kept together because the transitions depend on each other (a docked panel
-  // ignores close; pinning opens it). `pinned` and `tab` are persisted;
-  // `isOpen` is transient and derived from `pinned` on load.
+  // Whether the sheet is showing, whether it should stay open and which tab it
+  // shows are kept together because the transitions depend on each other.
+  // `pinned` and `tab` are persisted; `isOpen` is transient and derived from
+  // `pinned` on load.
   const [state, dispatch] = useReducer(
     quickSettingsPanelReducer,
     canPin,
@@ -154,8 +153,8 @@ export function useQuickSettingsPanelState({ canPin }: UseQuickSettingsPanelStat
     writeStoredQuickSettingsPanelState({ pinned: state.pinned, tab: state.tab });
   }, [state.pinned, state.tab]);
 
-  // Crossing into the mobile breakpoint while docked: collapse rather than
-  // pop up as an overlay. On mount this is a no-op (a pin never starts open there).
+  // Crossing into the mobile breakpoint collapses an always-open desktop sheet.
+  // On mount this is a no-op because a pin never starts open on mobile.
   useEffect(() => {
     if (!canPin) {
       dispatch({ type: 'leaveDesktop' });
@@ -170,7 +169,7 @@ export function useQuickSettingsPanelState({ canPin }: UseQuickSettingsPanelStat
   return useMemo(() => ({
     isOpen: state.isOpen,
     // A stored pin is only honoured where docking is possible; on mobile the
-    // panel behaves as an unpinned overlay regardless of what is stored.
+    // panel behaves as a closable sheet regardless of what is stored.
     isPinned: state.pinned && canPin,
     activeTab: state.tab,
     close,

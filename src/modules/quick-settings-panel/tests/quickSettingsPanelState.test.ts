@@ -14,14 +14,14 @@ import type { QuickSettingsPanelState } from '@/modules/quick-settings-panel/hoo
  * The panel used to keep `isOpen` in a bare useState, so it forgot everything
  * on reload. The pin and tab choice now persist under `quickSettingsPanel`;
  * these tests cover the parsing of that entry and the transitions that decide
- * when a docked panel may be hidden.
+ * when a persistent sheet may be hidden.
  */
 
 const STORAGE_KEY = 'quickSettingsPanel';
 
 const closedUnpinned: QuickSettingsPanelState = { isOpen: false, pinned: false, tab: 'settings' };
 const openUnpinned: QuickSettingsPanelState = { isOpen: true, pinned: false, tab: 'settings' };
-const docked: QuickSettingsPanelState = { isOpen: true, pinned: true, tab: 'commands' };
+const persistent: QuickSettingsPanelState = { isOpen: true, pinned: true, tab: 'commands' };
 
 beforeEach(() => {
   localStorage.clear();
@@ -74,7 +74,7 @@ test('close hides an open unpinned panel and is a no-op when already closed', ()
   assert.equal(quickSettingsPanelReducer(closedUnpinned, { type: 'close', canPin: true }), closedUnpinned);
 });
 
-test('pinning opens the panel and unpinning keeps it open as an overlay', () => {
+test('pinning opens the sheet and unpinning keeps it open', () => {
   const pinned = quickSettingsPanelReducer(closedUnpinned, { type: 'togglePin', canPin: true });
   assert.deepEqual(pinned, { isOpen: true, pinned: true, tab: 'settings' });
 
@@ -82,14 +82,14 @@ test('pinning opens the panel and unpinning keeps it open as an overlay', () => 
   assert.deepEqual(unpinned, { isOpen: true, pinned: false, tab: 'settings' });
 });
 
-test('close cannot hide a docked panel', () => {
-  assert.equal(quickSettingsPanelReducer(docked, { type: 'close', canPin: true }), docked);
+test('close cannot hide a persistent sheet', () => {
+  assert.equal(quickSettingsPanelReducer(persistent, { type: 'close', canPin: true }), persistent);
 });
 
-test('the handle collapses a docked panel without discarding the pin', () => {
-  const hidden = quickSettingsPanelReducer(docked, { type: 'toggle' });
+test('the handle collapses a persistent sheet without discarding the pin', () => {
+  const hidden = quickSettingsPanelReducer(persistent, { type: 'toggle' });
   assert.deepEqual(hidden, { isOpen: false, pinned: true, tab: 'commands' });
-  assert.deepEqual(quickSettingsPanelReducer(hidden, { type: 'toggle' }), docked);
+  assert.deepEqual(quickSettingsPanelReducer(hidden, { type: 'toggle' }), persistent);
 });
 
 test('selecting a tab changes only the tab', () => {
@@ -104,20 +104,20 @@ test('mobile ignores a pin request', () => {
 
 test('a pin stored on desktop does not trap the panel open on mobile', () => {
   // The stored pin is kept (it applies again on desktop) but the panel behaves
-  // as an unpinned overlay: toggle and close both work.
+  // as a closable sheet: toggle and close both work.
   const stored: QuickSettingsPanelState = { isOpen: true, pinned: true, tab: 'settings' };
   assert.equal(quickSettingsPanelReducer(stored, { type: 'close', canPin: false }).isOpen, false);
   const toggled = quickSettingsPanelReducer(stored, { type: 'toggle' });
   assert.deepEqual(toggled, { isOpen: false, pinned: true, tab: 'settings' });
 });
 
-test('leaving the desktop breakpoint collapses a docked panel but leaves an overlay alone', () => {
-  assert.deepEqual(quickSettingsPanelReducer(docked, { type: 'leaveDesktop' }), { ...docked, isOpen: false });
+test('leaving the desktop breakpoint collapses a persistent sheet but leaves a regular sheet alone', () => {
+  assert.deepEqual(quickSettingsPanelReducer(persistent, { type: 'leaveDesktop' }), { ...persistent, isOpen: false });
   assert.equal(quickSettingsPanelReducer(openUnpinned, { type: 'leaveDesktop' }), openUnpinned);
   assert.equal(quickSettingsPanelReducer(closedUnpinned, { type: 'leaveDesktop' }), closedUnpinned);
 });
 
-test('the hook starts a pinned panel open and docked on desktop', () => {
+test('the hook starts a pinned panel open on desktop', () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinned: true, tab: 'commands' }));
 
   const { result } = renderHook(() => useQuickSettingsPanelState({ canPin: true }));
@@ -137,7 +137,7 @@ test('the hook starts a pinned panel closed and unpinned on mobile without erasi
   assert.deepEqual(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? ''), { pinned: true, tab: 'commands' });
 });
 
-test('the hook keeps a docked panel and its handle in step across a viewport change', () => {
+test('the hook keeps a persistent sheet and its handle in step across a viewport change', () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinned: true, tab: 'settings' }));
 
   const { result, rerender } = renderHook(
@@ -147,13 +147,13 @@ test('the hook keeps a docked panel and its handle in step across a viewport cha
   assert.equal(result.current.isOpen, true);
   assert.equal(result.current.isPinned, true);
 
-  // Narrowing hides the panel instead of turning it into an overlay.
+  // Narrowing hides the panel instead of reopening it uninvited.
   rerender({ canPin: false });
   assert.equal(result.current.isOpen, false);
   assert.equal(result.current.isPinned, false);
 
   // Widening again: still pinned, still hidden, so the handle reads "open" and
-  // the next toggle docks it.
+  // the next toggle restores it.
   rerender({ canPin: true });
   assert.equal(result.current.isOpen, false);
   assert.equal(result.current.isPinned, true);

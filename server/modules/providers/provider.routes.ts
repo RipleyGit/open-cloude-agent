@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from 'express';
 
+import { providerRegistry } from '@/modules/providers/provider.registry.js';
 import { providerAuthService } from '@/modules/providers/services/provider-auth.service.js';
 import { claudeSettingsPermissionsService } from '@/modules/providers/services/claude-settings-permissions.service.js';
 import { providerCapabilitiesService } from '@/modules/providers/services/provider-capabilities.service.js';
@@ -319,6 +320,7 @@ const parseProvider = (value: unknown): LLMProvider => {
     || normalized === 'codex'
     || normalized === 'cursor'
     || normalized === 'opencode'
+    || normalized === 'agy'
   ) {
     return normalized;
   }
@@ -630,6 +632,21 @@ router.get(
     const provider = parseProvider(req.params.provider);
     const status = await providerAuthService.getProviderAuthStatus(provider);
     res.json(createApiSuccessResponse(status));
+  }),
+);
+
+router.get(
+  '/:provider/quota',
+  asyncHandler(async (req: Request, res: Response) => {
+    const provider = parseProvider(req.params.provider);
+    const resolved = providerRegistry.resolveProvider(provider);
+    const forceRefresh = req.query.refresh === 'true' || req.query.refresh === '1';
+    if ('getQuota' in resolved.auth && typeof (resolved.auth as { getQuota?: (refresh: boolean) => Promise<unknown> }).getQuota === 'function') {
+      const quota = await (resolved.auth as { getQuota: (refresh: boolean) => Promise<unknown> }).getQuota(forceRefresh);
+      res.json(createApiSuccessResponse(quota));
+    } else {
+      res.json(createApiSuccessResponse(null));
+    }
   }),
 );
 
