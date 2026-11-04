@@ -502,7 +502,56 @@
       "modelPermissions": "Model Access",
       "allModels": "All Models Available (Unlimited)",
       "lastUpdated": "Updated at: {{time}}",
-      "unavailable": "Quota details not available from provider gateway"
+      "unavailable": "Quota details not available from provider gateway",
+      "usage": {
+        "account": {
+          "connected": "Google account · Connected",
+          "plan": "Current plan",
+          "status": "Account status",
+          "statusNormal": "Normal"
+        },
+        "plans": {
+          "free": "Free",
+          "pro": "Google AI Pro",
+          "ultra": "Google AI Ultra"
+        },
+        "weekly": {
+          "title": "Weekly model usage",
+          "estimated": "used · estimated",
+          "noteLeft": "Model quotas counted separately",
+          "noteRight": "Weekly cap depends on the account"
+        },
+        "refresh": {
+          "title": "Next base quota refresh",
+          "inDuration": "In about {{duration}}",
+          "unknown": "No reset time reported",
+          "windowFiveHour": "5-hour window",
+          "windowWeekly": "Weekly window"
+        },
+        "models": {
+          "title": "Model quota",
+          "note": "Remaining · live values",
+          "remaining": "{{percent}}% left",
+          "refreshIn": "Refreshes in about {{duration}}",
+          "refreshFull": "Full quota available"
+        },
+        "policy": {
+          "title": "Plan refresh policy",
+          "note": "Official rules summary",
+          "free": "Free: base quota refreshes weekly.",
+          "pro": "Pro: refreshes every 5 hours until the weekly rate limit is hit.",
+          "ultra": "Ultra: higher quota, refreshes every 5 hours, plus a higher weekly rate limit."
+        },
+        "duration": {
+          "now": "momentarily",
+          "daysHours": "{{days}}d {{hours}}h",
+          "hoursMinutes": "{{hours}}h {{minutes}}m",
+          "minutes": "{{minutes}}m"
+        },
+        "footer": {
+          "note": "Account, status, quota and countdown are read from the local Antigravity account data by the app; actual account information requires login authorization."
+        }
+      }
     },
     "error": "Error: {{error}}"
   },

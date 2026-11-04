@@ -467,7 +467,56 @@
       "modelPermissions": "可用模型范围",
       "allModels": "全部可用 (无限制)",
       "lastUpdated": "更新时间: {{time}}",
-      "unavailable": "未获取到额度数据或网关不支持查询"
+      "unavailable": "未获取到额度数据或网关不支持查询",
+      "usage": {
+        "account": {
+          "connected": "Google 账号 · 已连接",
+          "plan": "当前方案",
+          "status": "账号状态",
+          "statusNormal": "正常"
+        },
+        "plans": {
+          "free": "Free",
+          "pro": "Google AI Pro",
+          "ultra": "Google AI Ultra"
+        },
+        "weekly": {
+          "title": "本周模型用量",
+          "estimated": "已用 · 估算",
+          "noteLeft": "模型额度分别计算",
+          "noteRight": "周上限以账号为准"
+        },
+        "refresh": {
+          "title": "下次基础配额刷新",
+          "inDuration": "约 {{duration}}后",
+          "unknown": "暂无刷新时间",
+          "windowFiveHour": "5 小时窗口",
+          "windowWeekly": "每周刷新"
+        },
+        "models": {
+          "title": "模型额度",
+          "note": "剩余量 · 实时值",
+          "remaining": "剩余 {{percent}}%",
+          "refreshIn": "刷新: 约 {{duration}}后",
+          "refreshFull": "全额可用"
+        },
+        "policy": {
+          "title": "套餐刷新策略",
+          "note": "官方规则摘要",
+          "free": "Free: 基础配额按周刷新。",
+          "pro": "Pro: 每 5 小时刷新，直到触及周速率限制。",
+          "ultra": "Ultra: 额度更高，每 5 小时刷新，并有较高周速率限制。"
+        },
+        "duration": {
+          "now": "即将刷新",
+          "daysHours": "{{days}} 天 {{hours}} 小时",
+          "hoursMinutes": "{{hours}} 小时 {{minutes}} 分",
+          "minutes": "{{minutes}} 分"
+        },
+        "footer": {
+          "note": "账号、状态、额度与倒计时均由应用读取本地 Antigravity 账号数据；实际账号信息需由应用登录授权后读取。"
+        }
+      }
     },
     "error": "错误：{{error}}"
   },

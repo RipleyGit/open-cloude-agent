@@ -13,6 +13,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import ProviderCliVersion from '@/modules/settings/tabs/agents-settings/sections/content/ProviderCliVersion';
+import AgyUsageOverview from '@/modules/settings/tabs/agents-settings/sections/content/AgyUsageOverview';
 import { api } from '@/shared/api';
 import { Badge, Button, LLMProviderLogo } from '@/shared/ui';
 import type {
@@ -122,7 +123,8 @@ function SubscriptionOverrideNotice({ override }: SubscriptionOverrideNoticeProp
   );
 }
 
-function getQuotaColorClass(percentage: number): {
+/** Bar and text colors for a remaining-quota percentage, shared with AgyUsageOverview. */
+export function getQuotaColorClass(percentage: number): {
   bar: string;
   text: string;
 } {
@@ -313,6 +315,10 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
 
       {agent === 'agy' && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+          {currentQuota?.models && currentQuota.models.length > 0 && (
+            <AgyUsageOverview quota={currentQuota} email={authStatus.email} />
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div>
               <div className="flex items-center gap-2">

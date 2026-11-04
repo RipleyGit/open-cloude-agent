@@ -74,9 +74,9 @@ describe('AccountContent with Antigravity account and quota details', () => {
     // Model quota section
     expect(screen.getByText('Supported Models & Usage Quota')).toBeDefined();
     expect(screen.getByText('29 supported models')).toBeDefined();
-    expect(screen.getByText('Claude Sonnet 4.6 (Thinking)')).toBeDefined();
+    expect(screen.getAllByText('Claude Sonnet 4.6 (Thinking)').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('claude-sonnet-4-6-thinking')).toBeDefined();
-    expect(screen.getByText('Gemini 3.1 Pro (High)')).toBeDefined();
+    expect(screen.getAllByText('Gemini 3.1 Pro (High)').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('gemini-3.1-pro-high')).toBeDefined();
   });
 
