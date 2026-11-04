@@ -8,6 +8,7 @@ import Database from 'better-sqlite3';
 
 import {
   createProviderTokenUsageService,
+  summarizeAgyTokenUsage,
   summarizeClaudeTokenUsage,
 } from '@/modules/providers/services/provider-token-usage.service.js';
 import { AppError } from '@/shared/utils.js';
@@ -250,6 +251,82 @@ test('the Claude summarizer skips a subagent sidechain turn', () => {
 
 test('the Claude summarizer reports zero for a transcript with no assistant turn yet', () => {
   const usage = summarizeClaudeTokenUsage([{ type: 'user', message: { role: 'user', content: 'hi' } }], '200000');
+
+  assert.equal(usage.used, 0);
+  assert.equal(usage.total, 200_000);
+});
+
+test('agy token usage resolves its transcript from the session row and reads the newest model row', async () => {
+  const tempDirectory = await mkdtemp(path.join(tmpdir(), 'provider-token-usage-agy-'));
+  const sessionFilePath = path.join(tempDirectory, 'transcript.jsonl');
+
+  try {
+    // agy writes one JSON object per line; token counts sit as top-level
+    // fields on model rows (source: "MODEL" / type: "PLANNER_RESPONSE"), unlike
+    // Claude's nested message.usage.
+    await writeFile(sessionFilePath, [
+      JSON.stringify({ step_index: 0, source: 'USER_EXPLICIT', type: 'USER_INPUT', status: 'DONE', content: 'hi' }),
+      JSON.stringify({ step_index: 1, source: 'MODEL', type: 'PLANNER_RESPONSE', status: 'DONE', input_tokens: 7000, cache_read_tokens: 1000, output_tokens: 300, content: 'answer' }),
+      '{incomplete',
+    ].join('\n'));
+
+    const service = createProviderTokenUsageService({
+      getSessionById: () => createSessionRow({ provider: 'agy', jsonl_path: sessionFilePath }),
+      getClaudeContextWindow: () => '200000',
+    });
+
+    assert.deepEqual(await service.getSessionTokenUsage('app-session'), {
+      used: 8300,
+      total: 200_000,
+      inputTokens: 8000,
+      outputTokens: 300,
+      cacheReadTokens: 1000,
+      cacheCreationTokens: 0,
+      cacheTokens: 1000,
+      breakdown: { input: 8000, output: 300 },
+    });
+  } finally {
+    await rm(tempDirectory, { recursive: true, force: true });
+  }
+});
+
+test('the agy summarizer reads the newest model row, not the whole conversation', () => {
+  const entries = [
+    { step_index: 0, source: 'MODEL', type: 'PLANNER_RESPONSE', input_tokens: 500, cache_read_tokens: 900, output_tokens: 40 },
+    { step_index: 1, source: 'USER_EXPLICIT', type: 'USER_INPUT', content: 'next' },
+    // The newest turn's prompt is the whole context, so its cache_read already
+    // includes everything before it. Summing turns would double-count.
+    { step_index: 2, source: 'MODEL', type: 'PLANNER_RESPONSE', input_tokens: 3, cache_read_tokens: 4000, cache_creation_tokens: 100, output_tokens: 80 },
+  ];
+
+  assert.deepEqual(summarizeAgyTokenUsage(entries, '200000'), {
+    used: 4183,
+    total: 200_000,
+    inputTokens: 4103,
+    outputTokens: 80,
+    cacheReadTokens: 4000,
+    cacheCreationTokens: 100,
+    cacheTokens: 4100,
+    breakdown: { input: 4103, output: 80 },
+  });
+});
+
+test('the agy summarizer skips model rows that carry an all-zero usage block', () => {
+  // An interrupted or failed turn still writes a model row but with no usage
+  // yet. Reading it as the newest turn would zero the counter.
+  const entries = [
+    { step_index: 0, source: 'MODEL', type: 'PLANNER_RESPONSE', input_tokens: 3, cache_read_tokens: 4000, output_tokens: 80 },
+    { step_index: 1, source: 'MODEL', type: 'PLANNER_RESPONSE', input_tokens: 0, output_tokens: 0 },
+  ];
+
+  assert.equal(summarizeAgyTokenUsage(entries, '200000').used, 4083);
+});
+
+test('the agy summarizer reports zero for a transcript with no model row yet', () => {
+  const usage = summarizeAgyTokenUsage(
+    [{ step_index: 0, source: 'USER_EXPLICIT', type: 'USER_INPUT', content: 'hi' }],
+    '200000',
+  );
 
   assert.equal(usage.used, 0);
   assert.equal(usage.total, 200_000);

@@ -327,8 +327,74 @@ function parseClaudeUsageEntries(fileContent: string): AnyRecord[] {
   return entries;
 }
 
+/**
+ * Latest context-window usage from an Antigravity CLI (`agy`) transcript.
+ *
+ * agy writes one JSON object per line as `step_index`-numbered events; token
+ * counts are top-level fields on model responses (`source: "MODEL"` /
+ * `type: "PLANNER_RESPONSE"`), not nested under `message.usage` the way Claude
+ * stores them. The newest model row is this turn's whole prompt
+ * (`input_tokens + cache_read + cache_creation`), matching the semantics of
+ * `summarizeClaudeTokenUsage`.
+ */
+export function summarizeAgyTokenUsage(
+  entries: AnyRecord[],
+  configuredContextWindow: string | undefined = process.env.CONTEXT_WINDOW,
+): TokenUsageResult {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cacheReadTokens = 0;
+  let cacheCreationTokens = 0;
+
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry?.source !== 'MODEL' && entry?.type !== 'PLANNER_RESPONSE') {
+      continue;
+    }
+
+    const rowInputTokens = readUsageNumber(entry.input_tokens);
+    const rowCacheReadTokens = readUsageNumber(entry.cache_read_tokens);
+    const rowCacheCreationTokens = readUsageNumber(entry.cache_creation_tokens);
+    const rowOutputTokens = readUsageNumber(entry.output_tokens);
+
+    // A model row with no usage yet (e.g. an interrupted turn) would zero a
+    // counter a live event had set; skip it the way the Claude reader does.
+    if (rowInputTokens === 0 && rowOutputTokens === 0) {
+      continue;
+    }
+
+    inputTokens = rowInputTokens + rowCacheReadTokens + rowCacheCreationTokens;
+    outputTokens = rowOutputTokens;
+    cacheReadTokens = rowCacheReadTokens;
+    cacheCreationTokens = rowCacheCreationTokens;
+    break;
+  }
+
+  const parsedContextWindow = Number.parseInt(configuredContextWindow ?? '', 10);
+  const contextWindow = Number.isFinite(parsedContextWindow) ? parsedContextWindow : 1_000_000;
+  const cacheTokens = cacheReadTokens + cacheCreationTokens;
+
+  return {
+    used: inputTokens + outputTokens,
+    total: contextWindow,
+    inputTokens,
+    outputTokens,
+    cacheReadTokens,
+    cacheCreationTokens,
+    cacheTokens,
+    breakdown: { input: inputTokens, output: outputTokens },
+  };
+}
+
 function claudeEntriesHaveUsage(entries: AnyRecord[]): boolean {
   return entries.some((entry) => entry?.type === 'assistant' && entry.message?.usage);
+}
+
+function agyEntriesHaveUsage(entries: AnyRecord[]): boolean {
+  return entries.some((entry) =>
+    (entry?.source === 'MODEL' || entry?.type === 'PLANNER_RESPONSE')
+    && (readUsageNumber(entry?.input_tokens) > 0 || readUsageNumber(entry?.output_tokens) > 0),
+  );
 }
 
 function readOpenCodeTokenUsage(databasePath: string, providerSessionId: string): TokenUsageResult {
@@ -487,6 +553,28 @@ export function createProviderTokenUsageService(
         // whole file is still authoritative when it happens.
         return findCodexTokenUsage(await dependencies.readTextFile(sessionFilePath))
           ?? emptyCodexTokenUsage();
+      }
+
+      if (session.provider === 'agy') {
+        const sessionFilePath = session.jsonl_path && dependencies.fileExists(session.jsonl_path)
+          ? session.jsonl_path
+          : null;
+
+        if (!sessionFilePath) {
+          throw new AppError(`Session file for "${sessionId}" was not found.`, {
+            code: 'SESSION_FILE_NOT_FOUND',
+            statusCode: 404,
+          });
+        }
+
+        const tail = await dependencies.readTextFileTail(sessionFilePath, TOKEN_USAGE_TAIL_BYTES);
+        let entries = parseClaudeUsageEntries(tail.content);
+        // Reuse the same JSONL line parser; agy rows are objects the parser
+        // returns unchanged. The summarizer picks the agy-specific fields.
+        if (!agyEntriesHaveUsage(entries) && !tail.isComplete) {
+          entries = parseClaudeUsageEntries(await dependencies.readTextFile(sessionFilePath));
+        }
+        return summarizeAgyTokenUsage(entries, dependencies.getClaudeContextWindow());
       }
 
       let sessionFilePath = session.jsonl_path;

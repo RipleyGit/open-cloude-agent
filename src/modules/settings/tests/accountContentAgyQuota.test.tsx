@@ -67,13 +67,9 @@ describe('AccountContent with Antigravity account and quota details', () => {
 
     render(<AccountContent agent="agy" authStatus={authStatus} onLogin={() => {}} />);
 
-    // Account details
-    expect(screen.getByText('Account & Environment Configuration')).toBeDefined();
-    expect(screen.getByText('Watt Yu')).toBeDefined();
-    expect(screen.getByText('ripleyjmail@gmail.com')).toBeDefined();
-    expect(screen.getByText('~/.antigravity')).toBeDefined();
-    expect(screen.getByText('g1-pro-tier')).toBeDefined();
-    expect(screen.getByText('fiery-radar-vfg2z')).toBeDefined();
+    // Connection status
+    expect(screen.getByText('Connection Status')).toBeDefined();
+    expect(screen.getByText('Logged in as ripleyjmail@gmail.com')).toBeDefined();
 
     // Model quota section
     expect(screen.getByText('Supported Models & Usage Quota')).toBeDefined();
@@ -87,18 +83,10 @@ describe('AccountContent with Antigravity account and quota details', () => {
   it('renders fallback gateway quota when per-model list is not present', () => {
     const authStatus: ProviderAuthStatus = {
       authenticated: true,
-      email: 'bolshevik@example.com',
+      email: 'bolshevik',
       method: 'api_key',
       error: null,
       loading: false,
-      accountDetails: {
-        authType: 'gemini-api-key',
-        accountName: 'bolshevik',
-        email: 'bolshevik@example.com',
-        baseUrl: 'https://newapi.bleem.site',
-        defaultModel: 'gemini-3.6-flash',
-        keyMasked: 'sk-RVJ2••••••••••••uccJ',
-      },
       quota: {
         unlimited: true,
         accountName: 'bolshevik',
@@ -117,10 +105,40 @@ describe('AccountContent with Antigravity account and quota details', () => {
 
     render(<AccountContent agent="agy" authStatus={authStatus} onLogin={() => {}} />);
 
-    expect(screen.getByText('Account & Environment Configuration')).toBeDefined();
-    expect(screen.getByText('bolshevik')).toBeDefined();
-    expect(screen.getByText('https://newapi.bleem.site')).toBeDefined();
+    // Connection status
+    expect(screen.getByText('Connection Status')).toBeDefined();
+    expect(screen.getByText('Logged in as bolshevik')).toBeDefined();
+
+    // Gateway quota section
+    expect(screen.getByText('Supported Models & Usage Quota')).toBeDefined();
     expect(screen.getByText('Unlimited Quota')).toBeDefined();
     expect(screen.getByText('$32,106.83 USD')).toBeDefined();
+  });
+
+  it('does not render quota section for other agents even if quota data is present', () => {
+    const authStatusWithQuota: ProviderAuthStatus = {
+      authenticated: true,
+      email: 'test@example.com',
+      method: 'cli',
+      error: null,
+      loading: false,
+      quota: {
+        totalModels: 5,
+        averagePercentage: 80,
+        models: [],
+        fetchedAt: '2026-11-04T10:00:00.000Z',
+      },
+    };
+
+    const { rerender } = render(
+      <AccountContent agent="cursor" authStatus={authStatusWithQuota} onLogin={() => {}} />
+    );
+    expect(screen.queryByText('Supported Models & Usage Quota')).toBeNull();
+
+    rerender(<AccountContent agent="opencode" authStatus={authStatusWithQuota} onLogin={() => {}} />);
+    expect(screen.queryByText('Supported Models & Usage Quota')).toBeNull();
+
+    rerender(<AccountContent agent="claude" authStatus={authStatusWithQuota} onLogin={() => {}} />);
+    expect(screen.queryByText('Supported Models & Usage Quota')).toBeNull();
   });
 });

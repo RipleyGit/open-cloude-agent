@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Brain,
@@ -8,7 +8,6 @@ import {
   LogIn,
   RefreshCw,
   Search,
-  Server,
   Sparkles,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -151,15 +150,11 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
   const config = agentConfig[agent];
 
   const [isRefreshingQuota, setIsRefreshingQuota] = useState(false);
-  const [currentQuota, setCurrentQuota] = useState<ProviderQuotaData | null>(authStatus.quota ?? null);
+  const [refreshedQuota, setRefreshedQuota] = useState<ProviderQuotaData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<ModelFilterCategory>('all');
 
-  useEffect(() => {
-    if (authStatus.quota) {
-      setCurrentQuota(authStatus.quota);
-    }
-  }, [authStatus.quota]);
+  const currentQuota = refreshedQuota ?? (authStatus.quota ?? null);
 
   const handleRefreshQuota = async () => {
     if (!api?.providers?.quota) return;
@@ -169,7 +164,7 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
       if (response.ok) {
         const payload = await response.json();
         if (payload?.data) {
-          setCurrentQuota(payload.data as ProviderQuotaData);
+          setRefreshedQuota(payload.data as ProviderQuotaData);
         }
       }
     } catch (err) {
@@ -179,11 +174,10 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
     }
   };
 
-  const accountDetails = authStatus.accountDetails;
-
+  const quotaModels = currentQuota?.models;
   const filteredModels = useMemo<ProviderModelQuotaItem[]>(() => {
-    if (!currentQuota?.models) return [];
-    return currentQuota.models.filter((m) => {
+    if (!quotaModels) return [];
+    return quotaModels.filter((m) => {
       const lowerName = (m.name || '').toLowerCase();
       const lowerDisplay = (m.displayName || '').toLowerCase();
 
@@ -212,7 +206,7 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
       }
       return true;
     });
-  }, [currentQuota?.models, activeCategory, searchQuery]);
+  }, [quotaModels, activeCategory, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -317,83 +311,7 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
         </div>
       </div>
 
-      {accountDetails && (
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
-            <div className="flex items-center gap-2">
-              <Server className="h-4 w-4 text-primary" />
-              <h4 className="text-sm font-semibold text-foreground">
-                {t('agents.accountDetails.title')}
-              </h4>
-            </div>
-            {authStatus.authenticated && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                {t('agents.accountDetails.accountActive')}
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            {accountDetails.authType && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5">
-                <span className="text-muted-foreground">{t('agents.accountDetails.authType')}</span>
-                <span className="font-medium text-foreground">{accountDetails.authType}</span>
-              </div>
-            )}
-            {accountDetails.accountName && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5">
-                <span className="text-muted-foreground">{t('agents.accountDetails.accountName')}</span>
-                <span className="font-medium text-foreground font-mono">{accountDetails.accountName}</span>
-              </div>
-            )}
-            {accountDetails.email && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5">
-                <span className="text-muted-foreground">{t('agents.accountDetails.email')}</span>
-                <span className="font-medium text-foreground">{accountDetails.email}</span>
-              </div>
-            )}
-            {accountDetails.installPath && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5">
-                <span className="text-muted-foreground">{t('agents.accountDetails.installPath')}</span>
-                <span className="font-medium text-foreground font-mono">{accountDetails.installPath}</span>
-              </div>
-            )}
-            {accountDetails.subscriptionTier && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5">
-                <span className="text-muted-foreground">{t('agents.accountDetails.subscriptionTier')}</span>
-                <span className="font-medium text-foreground font-mono">{accountDetails.subscriptionTier}</span>
-              </div>
-            )}
-            {accountDetails.projectId && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5">
-                <span className="text-muted-foreground">{t('agents.accountDetails.projectId')}</span>
-                <span className="font-medium text-foreground font-mono">{accountDetails.projectId}</span>
-              </div>
-            )}
-            {accountDetails.defaultModel && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5">
-                <span className="text-muted-foreground">{t('agents.accountDetails.defaultModel')}</span>
-                <span className="font-medium text-foreground font-mono">{accountDetails.defaultModel}</span>
-              </div>
-            )}
-            {accountDetails.baseUrl && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5 md:col-span-2">
-                <span className="text-muted-foreground">{t('agents.accountDetails.baseUrl')}</span>
-                <span className="font-medium text-foreground font-mono break-all">{accountDetails.baseUrl}</span>
-              </div>
-            )}
-            {accountDetails.keyMasked && (
-              <div className="flex flex-col gap-1 rounded bg-muted/40 p-2.5 md:col-span-2">
-                <span className="text-muted-foreground">{t('agents.accountDetails.apiKey')}</span>
-                <span className="font-medium text-foreground font-mono">{accountDetails.keyMasked}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {(currentQuota || agent === 'agy') && (
+      {agent === 'agy' && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div>
