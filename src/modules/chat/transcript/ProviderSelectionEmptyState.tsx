@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 
@@ -9,6 +9,8 @@ import type {
   ProviderModelsDefinition,
 } from "@/shared/types";
 import { NextTaskBanner } from "@/modules/task-master";
+import { AccountContent } from "@/modules/settings";
+import { ProviderLoginModal, useProviderAuthStatus } from "@/modules/provider-auth";
 import {
   Dialog,
   DialogTrigger,
@@ -163,6 +165,17 @@ export default function ProviderSelectionEmptyState({
     return found?.label || currentModel;
   }, [provider, currentModel, providerModelCatalog]);
 
+  const isAgy = provider === 'agy';
+  const { providerAuthStatus, checkProviderAuthStatus } = useProviderAuthStatus();
+  // Controls visibility of the login modal when authenticating or re-connecting agy credentials from the empty state.
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  useEffect(() => {
+    if (isAgy) {
+      checkProviderAuthStatus('agy');
+    }
+  }, [isAgy, checkProviderAuthStatus]);
+
   const handleModelSelect = useCallback(
     (providerId: LLMProvider, modelValue: string) => {
       setProvider(providerId);
@@ -184,18 +197,45 @@ export default function ProviderSelectionEmptyState({
     setPickerOpen(true);
   };
 
-  if (!selectedSession && !currentSessionId) {
+  if (selectedSession && !isAgy) {
     return (
-      <div className="flex h-full items-center justify-center px-4">
-        <div className="w-full max-w-[34.25rem]">
-          <div className="mb-8 text-center">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              {t("providerSelection.title")}
-            </h2>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {t("providerSelection.description")}
-            </p>
-          </div>
+      <div className="flex h-full items-center justify-center">
+        <div className="max-w-[34.25rem] px-6 text-center">
+          <p className="mb-1.5 text-lg font-semibold text-foreground">
+            {t("session.continue.title")}
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {t("session.continue.description")}
+          </p>
+
+          {tasksEnabled && isTaskMasterInstalled && (
+            <div className="mt-5">
+              <NextTaskBanner
+                onStartTask={() => setInput(nextTaskPrompt)}
+                onShowAllTasks={onShowAllTasks}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAgy && !(!selectedSession && !currentSessionId)) {
+    return null;
+  }
+
+  return (
+    <div className={isAgy ? "w-full py-6" : "flex h-full items-center justify-center px-4"}>
+      <div className={`w-full ${isAgy ? "space-y-6" : "max-w-[34.25rem]"}`}>
+        <div className="mb-8 text-center">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            {selectedSession ? t("session.continue.title") : t("providerSelection.title")}
+          </h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {selectedSession ? t("session.continue.description") : t("providerSelection.description")}
+          </p>
+        </div>
 
           <Dialog open={dialogOpen} onOpenChange={setPickerOpen}>
             <DialogTrigger asChild>
@@ -315,6 +355,16 @@ export default function ProviderSelectionEmptyState({
             </DialogContent>
           </Dialog>
 
+          {isAgy && (
+            <div className="mt-6 text-left">
+              <AccountContent
+                agent="agy"
+                authStatus={providerAuthStatus.agy}
+                onLogin={() => setShowLoginModal(true)}
+              />
+            </div>
+          )}
+
           <p className="mt-4 text-center text-sm text-muted-foreground/70">
             {
               {
@@ -360,34 +410,19 @@ export default function ProviderSelectionEmptyState({
               />
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
 
-  if (selectedSession) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="max-w-[34.25rem] px-6 text-center">
-          <p className="mb-1.5 text-lg font-semibold text-foreground">
-            {t("session.continue.title")}
-          </p>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {t("session.continue.description")}
-          </p>
-
-          {tasksEnabled && isTaskMasterInstalled && (
-            <div className="mt-5">
-              <NextTaskBanner
-                onStartTask={() => setInput(nextTaskPrompt)}
-                onShowAllTasks={onShowAllTasks}
-              />
-            </div>
+          {isAgy && showLoginModal && (
+            <ProviderLoginModal
+              isOpen={showLoginModal}
+              onClose={() => setShowLoginModal(false)}
+              provider="agy"
+              onComplete={() => {
+                setShowLoginModal(false);
+                checkProviderAuthStatus('agy');
+              }}
+            />
           )}
         </div>
       </div>
-    );
-  }
-
-  return null;
+  );
 }

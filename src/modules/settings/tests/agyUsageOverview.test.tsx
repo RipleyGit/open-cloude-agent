@@ -107,4 +107,22 @@ describe('AgyUsageOverview', () => {
     expect(screen.getByText('5-hour window')).toBeDefined();
     expect(screen.queryByText('Weekly window')).toBeNull();
   });
+
+  it('prefers official weeklyUsedPercentage and nextResetTime when provided', () => {
+    const inTwoHours = new Date(Date.now() + 2 * 60 * 60_000 + 30_000).toISOString();
+    render(
+      <AgyUsageOverview
+        quota={buildQuota({
+          averagePercentage: 90,
+          weeklyUsedPercentage: 18,
+          weeklyPercentage: 82,
+          nextResetTime: inTwoHours,
+        })}
+        email="zolshevik@gmail.com"
+      />,
+    );
+
+    expect(screen.getByText('18%')).toBeDefined();
+    expect(screen.getByText('used · estimated')).toBeDefined();
+  });
 });

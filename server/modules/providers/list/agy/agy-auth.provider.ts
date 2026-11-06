@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AGY_PREDEFINED_MODELS } from './agy-models.provider.js';
 import type { IProviderAuth } from '@/shared/interfaces.js';
 import type {
   AnyRecord,
@@ -16,12 +15,20 @@ import type {
 } from '@/shared/types.js';
 import { probeCliVersion } from '@/shared/utils.js';
 
+import { AGY_PREDEFINED_MODELS } from './agy-models.provider.js';
+
 const ANTIGRAVITY_HOME = path.join(os.homedir(), '.antigravity');
 const ANTIGRAVITY_CLI_HOME = path.join(os.homedir(), '.gemini', 'antigravity-cli');
 const ANTIGRAVITY_TOOLS_DIR = path.join(os.homedir(), '.antigravity_tools');
 const ANTIGRAVITY_COCKPIT_DIR = path.join(os.homedir(), '.antigravity_cockpit');
 const AGY_ACCOUNTS_PATH = path.join(os.homedir(), '.gemini', 'google_accounts.json');
 const GEMINI_ENV_PATH = path.join(os.homedir(), '.gemini', '.env');
+
+const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_OAUTH_CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com';
+const GOOGLE_OAUTH_CLIENT_SECRET = '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';
+const CODE_ASSIST_API_BASE = 'https://cloudcode-pa.googleapis.com/v1internal';
+const CODE_ASSIST_USER_AGENT = 'Antigravity';
 
 type AntigravityAccountInfo = {
   id?: string;
@@ -30,6 +37,16 @@ type AntigravityAccountInfo = {
   subscriptionTier?: string | null;
   projectId?: string | null;
   quotaModels?: Array<{ name: string; percentage: number; reset_time?: string }>;
+};
+
+type AntigravityLiveCredentials = {
+  accessToken: string;
+  refreshToken?: string | null;
+  email: string;
+  name?: string | null;
+  expiry?: string | null;
+  projectId?: string | null;
+  subscriptionTier?: string | null;
 };
 
 /**
@@ -64,6 +81,370 @@ function parseGeminiEnv(): Record<string, string> {
     // Ignore read errors
   }
   return result;
+}
+
+/**
+ * Decodes live Antigravity OAuth credentials from keyring secret output.
+ */
+function parseLiveKeyringCredentials(rawSecret: string): AntigravityLiveCredentials | null {
+  const trimmed = rawSecret.trim();
+  if (trimmed.startsWith('go-keyring-base64:')) {
+    try {
+      const raw = trimmed.slice('go-keyring-base64:'.length);
+      const parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf8')) as AnyRecord;
+      const tokenObj = (parsed.token && typeof parsed.token === 'object') ? (parsed.token as AnyRecord) : null;
+      const email = typeof parsed.id_token_email === 'string'
+        ? parsed.id_token_email
+        : (tokenObj && typeof tokenObj.email === 'string'
+          ? tokenObj.email
+          : (typeof parsed.email === 'string' ? parsed.email : null));
+      const accessToken = tokenObj && typeof tokenObj.access_token === 'string'
+        ? tokenObj.access_token
+        : (typeof parsed.access_token === 'string' ? parsed.access_token : null);
+      const refreshToken = tokenObj && typeof tokenObj.refresh_token === 'string'
+        ? tokenObj.refresh_token
+        : (typeof parsed.refresh_token === 'string' ? parsed.refresh_token : null);
+      const expiry = tokenObj && typeof tokenObj.expiry === 'string'
+        ? tokenObj.expiry
+        : (typeof parsed.expiry === 'string' ? parsed.expiry : null);
+
+      if (email && email.includes('@') && accessToken) {
+        return {
+          email: email.trim(),
+          name: email.split('@')[0],
+          accessToken: accessToken.trim(),
+          refreshToken: refreshToken?.trim() || null,
+          expiry: expiry?.trim() || null,
+          subscriptionTier: 'Google AI Pro',
+          projectId: 'aicode-consumers',
+        };
+      }
+    } catch {
+      // Ignore JSON decode error
+    }
+  } else {
+    try {
+      const parsed = JSON.parse(trimmed) as AnyRecord;
+      const tokenObj = (parsed.token && typeof parsed.token === 'object') ? (parsed.token as AnyRecord) : null;
+      const email = typeof parsed.email === 'string'
+        ? parsed.email
+        : (tokenObj && typeof tokenObj.email === 'string' ? tokenObj.email : null);
+      const accessToken = typeof parsed.access_token === 'string'
+        ? parsed.access_token
+        : (tokenObj && typeof tokenObj.access_token === 'string' ? tokenObj.access_token : null);
+      const refreshToken = typeof parsed.refresh_token === 'string'
+        ? parsed.refresh_token
+        : (tokenObj && typeof tokenObj.refresh_token === 'string' ? tokenObj.refresh_token : null);
+
+      if (email && email.includes('@') && accessToken) {
+        return {
+          email: email.trim(),
+          name: email.split('@')[0],
+          accessToken: accessToken.trim(),
+          refreshToken: refreshToken?.trim() || null,
+          subscriptionTier: 'Google AI Pro',
+          projectId: 'aicode-consumers',
+        };
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  return null;
+}
+
+/**
+ * Reads live credentials containing OAuth tokens for official Google Cloud Code Assist API requests.
+ */
+function readAntigravityLiveCredentials(): AntigravityLiveCredentials | null {
+  // 1. macOS Keychain
+  if (process.platform === 'darwin') {
+    try {
+      const stdout = execSync('security find-generic-password -s "gemini" -a "antigravity" -w', {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 2500,
+      });
+      const creds = parseLiveKeyringCredentials(stdout);
+      if (creds) return creds;
+    } catch {
+      // Ignore keyring read errors
+    }
+  }
+
+  // 2. Linux SecretService via secret-tool
+  if (process.platform === 'linux') {
+    for (const cmd of [
+      'secret-tool lookup service gemini account antigravity',
+      'secret-tool lookup service gemini username antigravity',
+    ]) {
+      try {
+        const stdout = execSync(cmd, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          timeout: 2500,
+        });
+        const creds = parseLiveKeyringCredentials(stdout);
+        if (creds) return creds;
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  // 3. Antigravity tools store: ~/.antigravity_tools/accounts/*.json
+  const accountsJsonPath = path.join(ANTIGRAVITY_TOOLS_DIR, 'accounts.json');
+  if (fs.existsSync(accountsJsonPath)) {
+    try {
+      const index = JSON.parse(fs.readFileSync(accountsJsonPath, 'utf8')) as {
+        current_account_id?: string;
+      };
+      const currentId = index.current_account_id;
+      if (currentId) {
+        const accPath = path.join(ANTIGRAVITY_TOOLS_DIR, 'accounts', `${currentId}.json`);
+        if (fs.existsSync(accPath)) {
+          const acc = JSON.parse(fs.readFileSync(accPath, 'utf8')) as AnyRecord;
+          const token = (acc.token ?? {}) as AnyRecord;
+          const email = typeof acc.email === 'string'
+            ? acc.email
+            : (typeof token.email === 'string' ? token.email : null);
+          const accessToken = typeof token.access_token === 'string' ? token.access_token : null;
+          const refreshToken = typeof token.refresh_token === 'string' ? token.refresh_token : null;
+          const projectId = typeof token.project_id === 'string' ? token.project_id : 'aicode-consumers';
+
+          if (email && email.includes('@') && accessToken) {
+            return {
+              email: email.trim(),
+              name: typeof acc.name === 'string' ? acc.name : email.split('@')[0],
+              accessToken: accessToken.trim(),
+              refreshToken: refreshToken?.trim() || null,
+              subscriptionTier: 'Google AI Pro',
+              projectId,
+            };
+          }
+        }
+      }
+    } catch {
+      // Ignore read errors
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Exchanges a Google OAuth refresh token for a fresh short-lived access token.
+ */
+async function refreshGoogleAccessToken(refreshToken: string): Promise<{ accessToken: string; expiresIn: number } | null> {
+  try {
+    const params = new URLSearchParams({
+      client_id: GOOGLE_OAUTH_CLIENT_ID,
+      client_secret: GOOGLE_OAUTH_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    });
+    const res = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as AnyRecord;
+    if (typeof data.access_token === 'string') {
+      return {
+        accessToken: data.access_token,
+        expiresIn: typeof data.expires_in === 'number' ? data.expires_in : 3599,
+      };
+    }
+  } catch {
+    // Ignore network error
+  }
+  return null;
+}
+
+/**
+ * Fetches real-time official Google Cloud Code Assist quota summary and available models.
+ */
+async function fetchOfficialAntigravityQuota(
+  credentials: AntigravityLiveCredentials,
+  onTokenRefreshed?: (newToken: string, expiresIn: number) => void,
+): Promise<ProviderQuotaData | null> {
+  let token = credentials.accessToken;
+
+  async function authFetch(url: string, bodyObj: unknown, isRetry = false): Promise<Response | null> {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': CODE_ASSIST_USER_AGENT,
+        },
+        body: JSON.stringify(bodyObj),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (res.status === 401 && !isRetry && credentials.refreshToken) {
+        const refreshed = await refreshGoogleAccessToken(credentials.refreshToken);
+        if (refreshed) {
+          token = refreshed.accessToken;
+          onTokenRefreshed?.(refreshed.accessToken, refreshed.expiresIn);
+          return authFetch(url, bodyObj, true);
+        }
+      }
+
+      return res;
+    } catch {
+      return null;
+    }
+  }
+
+  // 1. loadCodeAssist
+  const loadRes = await authFetch(
+    `${CODE_ASSIST_API_BASE}:loadCodeAssist`,
+    { metadata: { ideType: 'ANTIGRAVITY' } },
+  );
+  if (!loadRes || !loadRes.ok) {
+    return null;
+  }
+
+  const loadData = (await loadRes.json()) as AnyRecord;
+  const projectId = (typeof loadData.cloudaicompanionProject === 'string' && loadData.cloudaicompanionProject.length > 0)
+    ? loadData.cloudaicompanionProject
+    : (credentials.projectId || 'aicode-consumers');
+
+  const paidTier = (loadData.paidTier ?? {}) as AnyRecord;
+  const currentTier = (loadData.currentTier ?? {}) as AnyRecord;
+  const tierName = (typeof paidTier.name === 'string' ? paidTier.name : null)
+    || (typeof paidTier.id === 'string' ? paidTier.id : null)
+    || (typeof currentTier.name === 'string' ? currentTier.name : null)
+    || credentials.subscriptionTier
+    || 'Google AI Pro';
+
+  // 2. Parallel fetch: available models and quota summary
+  const [modelsRes, quotaSummaryRes] = await Promise.all([
+    authFetch(`${CODE_ASSIST_API_BASE}:fetchAvailableModels`, { project: projectId }),
+    authFetch(`${CODE_ASSIST_API_BASE}:retrieveUserQuotaSummary`, { project: projectId }),
+  ]);
+
+  let weeklyPercentage: number | undefined;
+  let weeklyUsedPercentage: number | undefined;
+  let nextResetTime: string | null = null;
+
+  if (quotaSummaryRes && quotaSummaryRes.ok) {
+    try {
+      const summaryData = (await quotaSummaryRes.json()) as AnyRecord;
+      const groups = Array.isArray(summaryData.groups) ? (summaryData.groups as AnyRecord[]) : [];
+      let foundWeekly = false;
+
+      for (const group of groups) {
+        const buckets = Array.isArray(group.buckets) ? (group.buckets as AnyRecord[]) : [];
+        for (const bucket of buckets) {
+          const bucketId = String(bucket.bucketId || '').toLowerCase();
+          const window = String(bucket.window || '').toLowerCase();
+          const displayName = String(bucket.displayName || '').toLowerCase();
+          const isWeekly = bucketId.includes('weekly') || window === 'weekly' || displayName.includes('weekly');
+
+          if (isWeekly && typeof bucket.remainingFraction === 'number' && !foundWeekly) {
+            foundWeekly = true;
+            const fraction = Math.max(0, Math.min(1, bucket.remainingFraction));
+            weeklyPercentage = Math.round(fraction * 100);
+            weeklyUsedPercentage = Math.max(0, Math.min(100, Math.round((1 - fraction) * 100)));
+            if (typeof bucket.resetTime === 'string') {
+              nextResetTime = bucket.resetTime;
+            }
+          }
+
+          if (!nextResetTime && typeof bucket.resetTime === 'string') {
+            nextResetTime = bucket.resetTime;
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  // 3. Process models from fetchAvailableModels
+  const modelMap = new Map<string, ProviderModelQuotaItem>();
+
+  if (modelsRes && modelsRes.ok) {
+    try {
+      const modelsData = (await modelsRes.json()) as AnyRecord;
+      const rawModels = (modelsData.models ?? {}) as Record<string, AnyRecord>;
+
+      for (const [id, m] of Object.entries(rawModels)) {
+        if (id.startsWith('tab_') || id.startsWith('chat_')) continue;
+
+        const displayName = (typeof m.displayName === 'string' ? m.displayName : null) || id;
+        const quotaInfo = (m.quotaInfo ?? {}) as AnyRecord;
+        const fraction = typeof quotaInfo.remainingFraction === 'number'
+          ? Math.max(0, Math.min(1, quotaInfo.remainingFraction))
+          : 1;
+        const percentage = Math.round(fraction * 100);
+        const resetTime = typeof quotaInfo.resetTime === 'string' ? quotaInfo.resetTime : null;
+
+        modelMap.set(id, {
+          name: id,
+          displayName,
+          percentage,
+          resetTime,
+          resetTimeFormatted: resetTime ? formatResetTime(resetTime) : '全额可用',
+          supportsThinking: Boolean(m.supportsThinking),
+          supportsImages: Boolean(m.supportsImages),
+          recommended: Boolean(m.recommended),
+        });
+
+        if (!nextResetTime && resetTime) {
+          nextResetTime = resetTime;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  // 4. Ensure predefined models are always present as baseline
+  for (const opt of AGY_PREDEFINED_MODELS.OPTIONS) {
+    if (!modelMap.has(opt.value)) {
+      const lower = opt.value.toLowerCase();
+      modelMap.set(opt.value, {
+        name: opt.value,
+        displayName: opt.label,
+        percentage: 100,
+        resetTime: null,
+        resetTimeFormatted: '全额可用',
+        supportsThinking: lower.includes('thinking') || lower.includes('sonnet') || lower.includes('opus') || (opt.effort?.values.length ?? 0) > 2,
+        supportsImages: lower.includes('image') || lower.includes('flash') || lower.includes('pro'),
+        recommended: opt.value === 'gemini-3.8-flash-high' || opt.value.includes('sonnet'),
+      });
+    }
+  }
+
+  const modelsList = Array.from(modelMap.values()).sort((a, b) => {
+    if (a.recommended && !b.recommended) return -1;
+    if (!a.recommended && b.recommended) return 1;
+    return a.displayName.localeCompare(b.displayName);
+  });
+
+  const avg = modelsList.length > 0
+    ? Math.round(modelsList.reduce((sum, m) => sum + m.percentage, 0) / modelsList.length)
+    : 100;
+
+  return {
+    unlimited: true,
+    accountName: credentials.name || credentials.email.split('@')[0],
+    email: credentials.email,
+    subscriptionTier: tierName,
+    models: modelsList,
+    totalModels: modelsList.length,
+    averagePercentage: avg,
+    weeklyPercentage,
+    weeklyUsedPercentage,
+    nextResetTime,
+    fetchedAt: new Date().toISOString(),
+  };
 }
 
 /**
@@ -619,6 +1000,7 @@ export class AgyProviderAuth implements IProviderAuth {
   private cachedQuota: { data: ProviderQuotaData | null; fetchedAt: number } | null = null;
   private readonly QUOTA_TTL_MS = 60_000;
   private detectedBinPath: string | null = null;
+  private activeLiveCredentials: AntigravityLiveCredentials | null = null;
 
   checkInstalled(): CliVersionProbe {
     const candidates = getCandidateAgyBinaries();
@@ -642,7 +1024,26 @@ export class AgyProviderAuth implements IProviderAuth {
       return this.cachedQuota.data;
     }
 
-    // 1. Antigravity local account quota (Primary)
+    // 1. Try real-time official Google Code Assist API fetch (Live official quota)
+    const liveCreds = readAntigravityLiveCredentials();
+    if (liveCreds) {
+      this.activeLiveCredentials = liveCreds;
+      try {
+        const officialQuota = await fetchOfficialAntigravityQuota(liveCreds, (newToken) => {
+          if (this.activeLiveCredentials) {
+            this.activeLiveCredentials.accessToken = newToken;
+          }
+        });
+        if (officialQuota) {
+          this.cachedQuota = { data: officialQuota, fetchedAt: now };
+          return officialQuota;
+        }
+      } catch {
+        // Fall back to local accounts store if network is unreachable
+      }
+    }
+
+    // 2. Antigravity local account quota (Primary offline/mock fallback)
     const account = readAntigravityActiveAccount();
     if (account) {
       const models = readAntigravityModelsQuota(account);
@@ -665,7 +1066,7 @@ export class AgyProviderAuth implements IProviderAuth {
       return quotaData;
     }
 
-    // 2. Fallback: New API token quota if API key is configured
+    // 3. Fallback: New API token quota if API key is configured
     const geminiEnv = parseGeminiEnv();
     const apiKey = geminiEnv.GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const baseUrl = geminiEnv.GOOGLE_GEMINI_BASE_URL || process.env.GOOGLE_GEMINI_BASE_URL;
@@ -678,7 +1079,7 @@ export class AgyProviderAuth implements IProviderAuth {
       }
     }
 
-    // 3. Fallback: Standalone Gemini API Key without custom proxy
+    // 4. Fallback: Standalone Gemini API Key without custom proxy
     if (apiKey) {
       const models: ProviderModelQuotaItem[] = AGY_PREDEFINED_MODELS.OPTIONS.map((opt) => ({
         name: opt.value,
@@ -713,8 +1114,9 @@ export class AgyProviderAuth implements IProviderAuth {
     const installed = probe.installed || fs.existsSync(ANTIGRAVITY_HOME) || fs.existsSync(ANTIGRAVITY_CLI_HOME);
     const installedVersion = probe.version ?? (installed ? '1.4.12' : null);
 
-    // 1. Check Antigravity account login (Primary mode)
-    const account = readAntigravityActiveAccount();
+    // 1. Check Antigravity account login (Live credentials or local account)
+    const liveCreds = this.activeLiveCredentials || readAntigravityLiveCredentials();
+    const account = liveCreds || readAntigravityActiveAccount();
     if (account) {
       const quota = await this.getQuota();
       const accountDetails: ProviderAccountDetails = {
@@ -722,7 +1124,7 @@ export class AgyProviderAuth implements IProviderAuth {
         accountName: account.name || account.email.split('@')[0],
         email: account.email,
         installPath,
-        subscriptionTier: account.subscriptionTier || 'Google AI Pro',
+        subscriptionTier: quota?.subscriptionTier || account.subscriptionTier || 'Google AI Pro',
         projectId: account.projectId || 'aicode-consumers',
       };
 

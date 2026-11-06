@@ -71,17 +71,22 @@ export default function AgyUsageOverview({ quota, email }: AgyUsageOverviewProps
   const planShort = planKey === 'ultra' ? 'ULTRA' : planKey === 'free' ? 'FREE' : 'PRO';
   const planFull = t(`agents.quota.usage.plans.${planKey}`);
 
-  // The account file records only each model's remaining fraction, never an
-  // absolute weekly total, so the weekly figure is the average remaining
-  // inverted — an estimate, which the UI labels as one.
-  const weeklyUsedPercent = Math.min(100, Math.max(0, 100 - (quota.averagePercentage ?? 100)));
+  // Use the official weeklyUsedPercentage if provided by the Google API, or fall back
+  // to the inverted average remaining quota.
+  const weeklyUsedPercent = quota.weeklyUsedPercentage !== undefined
+    ? Math.min(100, Math.max(0, quota.weeklyUsedPercentage))
+    : Math.min(100, Math.max(0, 100 - (quota.averagePercentage ?? 100)));
 
   const nextResetAt = useMemo(() => {
+    if (quota.nextResetTime) {
+      const parsed = Date.parse(quota.nextResetTime);
+      if (Number.isFinite(parsed)) return parsed;
+    }
     const times = (quota.models ?? [])
       .map((model) => (model.resetTime ? Date.parse(model.resetTime) : Number.NaN))
       .filter((time) => Number.isFinite(time));
     return times.length > 0 ? Math.min(...times) : null;
-  }, [quota.models]);
+  }, [quota.nextResetTime, quota.models]);
 
   // Tightest quota first: the models closest to their limit are the ones worth
   // surfacing in a six-row overview.

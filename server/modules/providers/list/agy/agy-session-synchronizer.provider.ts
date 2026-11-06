@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import Database from 'better-sqlite3';
@@ -18,6 +19,49 @@ type ConversationSummaryRow = {
   workspace_uris: string | null;
   last_modified_time: string | null;
 };
+
+/**
+ * Extracts session title and working workspace directory from transcript.jsonl.
+ */
+async function extractAgyTranscriptMetadata(
+  transcriptPath: string,
+): Promise<{ sessionName: string; projectPath: string }> {
+  let sessionName = 'Antigravity Session';
+  let projectPath = process.cwd();
+
+  try {
+    const stream = fs.createReadStream(transcriptPath, { encoding: 'utf8' });
+    const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+
+    for await (const line of rl) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const item = JSON.parse(trimmed) as Record<string, unknown>;
+        if (item.type === 'USER_INPUT' || item.source === 'USER_EXPLICIT') {
+          const rawContent = String(item.content ?? '');
+          const userReqMatch = rawContent.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/i);
+          const firstLine = (userReqMatch ? userReqMatch[1] : rawContent).trim().split('\n')[0]?.trim();
+          if (firstLine) {
+            sessionName = firstLine.slice(0, 80);
+          }
+          const cwdMatch = rawContent.match(/Command Working Directory:\s*([^\r\n]+)/i)
+            || rawContent.match(/Active Workspaces:\s*\r?\n-\s*([^\r\n]+)/i);
+          if (cwdMatch && cwdMatch[1] && fs.existsSync(cwdMatch[1].trim())) {
+            projectPath = cwdMatch[1].trim();
+          }
+          break;
+        }
+      } catch {
+        // ignore JSON parse failure
+      }
+    }
+  } catch {
+    // fallback to default
+  }
+
+  return { sessionName, projectPath };
+}
 
 /**
  * Session indexing adapter for Antigravity CLI (`agy`).
@@ -69,9 +113,15 @@ export class AgySessionSynchronizer implements IProviderSessionSynchronizer {
             }
           }
 
-          const sessionName = (row.title && row.title.trim())
+          let sessionName = (row.title && row.title.trim())
             || (row.preview && row.preview.trim())
-            || 'Antigravity Session';
+            || '';
+
+          if (!sessionName || projectPath === process.cwd()) {
+            const meta = await extractAgyTranscriptMetadata(transcriptPath);
+            if (!sessionName) sessionName = meta.sessionName;
+            if (projectPath === process.cwd()) projectPath = meta.projectPath;
+          }
 
           const timestamps = await readFileTimestamps(transcriptPath);
           if (since && timestamps.updatedAt && new Date(timestamps.updatedAt) < since) {
@@ -118,11 +168,13 @@ export class AgySessionSynchronizer implements IProviderSessionSynchronizer {
             continue;
           }
 
+          const meta = await extractAgyTranscriptMetadata(transcriptPath);
+
           sessionsDb.createSession(
             conversationId,
             PROVIDER,
-            process.cwd(),
-            'Antigravity Session',
+            meta.projectPath,
+            meta.sessionName,
             timestamps.createdAt,
             timestamps.updatedAt,
             transcriptPath,
@@ -149,12 +201,13 @@ export class AgySessionSynchronizer implements IProviderSessionSynchronizer {
 
     const conversationId = match[1];
     const timestamps = await readFileTimestamps(filePath);
+    const meta = await extractAgyTranscriptMetadata(filePath);
 
     sessionsDb.createSession(
       conversationId,
       PROVIDER,
-      process.cwd(),
-      'Antigravity Session',
+      meta.projectPath,
+      meta.sessionName,
       timestamps.createdAt,
       timestamps.updatedAt,
       filePath,

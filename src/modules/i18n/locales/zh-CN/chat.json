@@ -314,5 +314,33 @@
     "customModelsOnlyHint": "在所有模型选择器中隐藏 {{provider}} 的内置模型，并将您的第一个模型设为默认模型。在您添加模型之前，内置模型仍会显示。",
     "builtInModelsHidden": "开启“仅使用我的模型”时，这些模型不会出现在模型选择器中。",
     "customModelsOnlyFailed": "无法更改此设置。"
+  },
+  "misc": {
+    "showTokenUsage": "查看 Token 使用情况",
+    "tokensUsed": "已消耗 {{count}} 个 token",
+    "tokensLabel": "tokens",
+    "sessionTokenUsage": "当前会话 Token 消耗",
+    "contextWindow": "上下文窗口",
+    "modalMeta": {
+      "helpEyebrow": "命令中心",
+      "helpTitle": "帮助与快捷键",
+      "helpSubtitle": "在不离开对话的情况下搜索内置功能、语法规则和命令用法。",
+      "modelsEyebrow": "模型选择",
+      "modelsTitle": "选择模型",
+      "modelsSubtitle": "选择该智能体提供者使用的模型。",
+      "costEyebrow": "会话指标",
+      "costTitle": "Token 使用",
+      "costSubtitle": "当前会话的输入、输出和总 Token 消耗。",
+      "agyCostSubtitle": "Antigravity 账号连接状态、每周用量与支持模型额度",
+      "statusEyebrow": "运行状态",
+      "statusTitle": "系统状态",
+      "statusSubtitle": "版本、提供者、运行时和环境信息汇总。",
+      "commandResult": "命令执行结果"
+    },
+    "choiceSavedSession": "您的选择已为此会话保存，并作为新对话的默认模型。",
+    "choiceSavedDefault": "您的选择将作为新对话的默认模型。",
+    "escClosesModal": "按 Esc 关闭弹窗。",
+    "close": "关闭",
+    "closeModal": "关闭结果弹窗"
   }
 }

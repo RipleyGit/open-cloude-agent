@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Brain,
   CheckCircle2,
+  Clock,
   Coins,
   Image,
   LogIn,
@@ -127,22 +128,26 @@ function SubscriptionOverrideNotice({ override }: SubscriptionOverrideNoticeProp
 export function getQuotaColorClass(percentage: number): {
   bar: string;
   text: string;
+  bgSubtle: string;
 } {
   if (percentage >= 80) {
     return {
       bar: 'bg-emerald-500',
       text: 'text-emerald-600 dark:text-emerald-400',
+      bgSubtle: 'bg-emerald-500/10 dark:bg-emerald-500/15',
     };
   }
   if (percentage >= 40) {
     return {
       bar: 'bg-amber-500',
       text: 'text-amber-600 dark:text-amber-400',
+      bgSubtle: 'bg-amber-500/10 dark:bg-amber-500/15',
     };
   }
   return {
     bar: 'bg-rose-500',
     text: 'text-rose-600 dark:text-rose-400',
+    bgSubtle: 'bg-rose-500/10 dark:bg-rose-500/15',
   };
 }
 
@@ -417,12 +422,19 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filteredModels.map((model) => {
                   const colors = getQuotaColorClass(model.percentage);
+                  const clamped = Math.min(100, Math.max(0, model.percentage));
                   return (
                     <div
                       key={model.name}
-                      className="flex flex-col justify-between rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border transition-colors space-y-2.5"
+                      className="relative overflow-hidden flex flex-col justify-between rounded-xl border border-border/80 bg-background/50 p-3 hover:border-border hover:shadow-sm transition-all space-y-2.5"
                     >
-                      <div className="space-y-1">
+                      {/* Ambient background progress fill inspired by Antigravity-Manager */}
+                      <div
+                        className={`absolute left-0 top-0 bottom-0 pointer-events-none transition-all duration-300 ${colors.bgSubtle}`}
+                        style={{ width: `${clamped}%` }}
+                      />
+
+                      <div className="relative z-10 space-y-1">
                         <div className="flex items-start justify-between gap-2">
                           <h5 className="text-xs font-semibold text-foreground leading-snug line-clamp-1" title={model.displayName}>
                             {model.displayName}
@@ -436,7 +448,7 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1">
+                      <div className="relative z-10 flex flex-wrap items-center gap-1">
                         {model.recommended && (
                           <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400 border border-amber-500/20">
                             <Sparkles className="h-2.5 w-2.5" />
@@ -457,16 +469,17 @@ export default function AccountContent({ agent, authStatus, onLogin }: AccountCo
                         )}
                       </div>
 
-                      <div className="space-y-1 pt-1">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="relative z-10 space-y-1 pt-0.5">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/70">
                           <div
                             className={`h-full ${colors.bar} transition-all duration-300`}
-                            style={{ width: `${Math.min(100, Math.max(0, model.percentage))}%` }}
+                            style={{ width: `${clamped}%` }}
                           />
                         </div>
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                           <span>{t('agents.quota.remainingQuota')}</span>
-                          <span>
+                          <span className="flex items-center gap-1 truncate">
+                            <Clock className="h-3 w-3 shrink-0 opacity-70" />
                             {model.resetTimeFormatted
                               ? t('agents.quota.resetTime', { time: model.resetTimeFormatted })
                               : t('agents.quota.resetFull')}

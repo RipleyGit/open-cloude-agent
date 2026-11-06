@@ -251,10 +251,13 @@ function buildShellCommand(
   }
 
   if (provider === 'agy') {
+    const bypassFlag = readBoolean(message.bypassPermissions)
+      ? ' --dangerously-skip-permissions'
+      : '';
     if (resumeSessionId) {
-      return otherProgram(`agy --conversation "${resumeSessionId}"`);
+      return otherProgram(`agy --conversation "${resumeSessionId}"${bypassFlag}`);
     }
-    return otherProgram(initialCommand || 'agy');
+    return otherProgram(initialCommand || `agy${bypassFlag}`);
   }
 
   // Launching with the flag is what unlocks "bypass permissions" in the CLI's

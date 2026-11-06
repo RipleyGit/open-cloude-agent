@@ -66,6 +66,22 @@ test('AgyProviderSessions correctly parses and normalizes transcript.jsonl entri
       content: 'Hello! How can I help you today?',
       created_at: '2026-11-03T10:00:02.000Z',
     }),
+    JSON.stringify({
+      step_index: 2,
+      type: 'GENERIC',
+      source: 'MODEL',
+      content: 'hello world file content',
+      status: 'DONE',
+      created_at: '2026-11-03T10:00:03.000Z',
+    }),
+    JSON.stringify({
+      step_index: 3,
+      type: 'CHECKPOINT',
+      source: 'SYSTEM',
+      content: 'Summary of earlier work',
+      status: 'DONE',
+      created_at: '2026-11-03T10:00:04.000Z',
+    }),
   ].join('\n');
 
   await writeFile(transcriptPath, sampleLines, 'utf8');
@@ -78,7 +94,7 @@ test('AgyProviderSessions correctly parses and normalizes transcript.jsonl entri
       transcriptPath,
     });
 
-    assert.equal(result.messages.length, 4); // 1 user + 1 thinking + 1 tool_use + 1 text response
+    assert.equal(result.messages.length, 5); // 1 user + 1 thinking + 1 tool_use (with result attached) + 1 text response + 1 checkpoint
 
     // 1. User message
     assert.equal(result.messages[0].role, 'user');
@@ -89,15 +105,21 @@ test('AgyProviderSessions correctly parses and normalizes transcript.jsonl entri
     assert.equal(result.messages[1].kind, 'thinking');
     assert.equal(result.messages[1].content, 'Thinking about the greeting...');
 
-    // 3. Tool call
+    // 3. Tool call with toolResult attached from step 2 GENERIC
     assert.equal(result.messages[2].role, 'assistant');
     assert.equal(result.messages[2].kind, 'tool_use');
     assert.equal(result.messages[2].toolName, 'read_file');
+    assert.equal(result.messages[2].toolResult?.content, 'hello world file content');
+    assert.equal(result.messages[2].toolResult?.isError, false);
 
     // 4. Response
     assert.equal(result.messages[3].role, 'assistant');
     assert.equal(result.messages[3].kind, 'text');
     assert.equal(result.messages[3].content, 'Hello! How can I help you today?');
+
+    // 5. Compaction checkpoint
+    assert.equal(result.messages[4].kind, 'text');
+    assert.equal(result.messages[4].isCompactSummary, true);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -112,4 +134,10 @@ test('AgyProviderAuth returns valid status and parses account / quota details', 
   assert.ok(status.method === 'api_key' || status.method === 'oauth');
   assert.ok(typeof status.email === 'string' && status.email.length > 0);
   assert.ok(status.quota);
+  assert.ok(Array.isArray(status.quota.models) && status.quota.models.length > 0);
+  assert.ok(typeof status.quota.averagePercentage === 'number');
+  if (status.quota.weeklyUsedPercentage !== undefined) {
+    assert.ok(typeof status.quota.weeklyUsedPercentage === 'number');
+    assert.ok(status.quota.weeklyUsedPercentage >= 0 && status.quota.weeklyUsedPercentage <= 100);
+  }
 });

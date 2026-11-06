@@ -5,6 +5,7 @@ import readline from 'node:readline';
 
 import { sessionsDb } from '@/modules/database/index.js';
 import type { IProviderSessions } from '@/shared/interfaces.js';
+import { prepareTranscriptMessages } from '@/shared/message-unification.js';
 import type {
   AnyRecord,
   FetchHistoryOptions,
@@ -75,7 +76,7 @@ export class AgySessionsProvider implements IProviderSessions {
     }
 
     // 2. Model / Planner response
-    if (item.type === 'PLANNER_RESPONSE' || item.source === 'MODEL') {
+    if (item.type === 'PLANNER_RESPONSE') {
       const messages: NormalizedMessage[] = [];
 
       // Extended thinking
@@ -101,9 +102,11 @@ export class AgySessionsProvider implements IProviderSessions {
             || 'tool';
           const toolArgs = tool.args ?? (typeof tool.function === 'object' ? (tool.function as AnyRecord)?.arguments : undefined) ?? {};
           const serializedArgs = typeof toolArgs === 'string' ? toolArgs : JSON.stringify(toolArgs, null, 2);
+          const toolId = String(tool.id || `${baseId}-tool-${i}`);
 
           messages.push({
             id: `${baseId}-tool-${i}`,
+            toolId,
             sessionId: sid,
             provider: PROVIDER,
             role: 'assistant',
@@ -118,7 +121,7 @@ export class AgySessionsProvider implements IProviderSessions {
       }
 
       // Final / main text content
-      if (typeof item.content === 'string' && item.content.length > 0) {
+      if (typeof item.content === 'string' && item.content.trim().length > 0) {
         messages.push({
           id: `${baseId}-text`,
           sessionId: sid,
@@ -134,7 +137,44 @@ export class AgySessionsProvider implements IProviderSessions {
       return messages;
     }
 
-    // 3. System message
+    // 3. Tool execution output / Generic step
+    if (item.type === 'GENERIC') {
+      const text = typeof item.content === 'string' ? item.content : String(item.content ?? '');
+      const isError = item.status === 'ERROR' || /Command exited with code [1-9]|Encountered error/i.test(text);
+      return [
+        {
+          id: `${baseId}-result`,
+          sessionId: sid,
+          provider: PROVIDER,
+          role: 'assistant',
+          kind: 'tool_result',
+          content: text,
+          text,
+          isError,
+          timestamp: msgTs,
+        },
+      ];
+    }
+
+    // 4. Compaction checkpoint
+    if (item.type === 'CHECKPOINT') {
+      const text = typeof item.content === 'string' ? item.content : String(item.content ?? '');
+      return [
+        {
+          id: `${baseId}-checkpoint`,
+          sessionId: sid,
+          provider: PROVIDER,
+          role: 'assistant',
+          kind: 'text',
+          content: text,
+          text,
+          isCompactSummary: true,
+          timestamp: msgTs,
+        },
+      ];
+    }
+
+    // 5. System message
     if (item.type === 'SYSTEM_MESSAGE') {
       const text = typeof item.content === 'string' ? item.content : String(item.content ?? '');
       return [
@@ -146,6 +186,22 @@ export class AgySessionsProvider implements IProviderSessions {
           kind: 'text',
           content: text,
           text,
+          timestamp: msgTs,
+        },
+      ];
+    }
+
+    // 6. Fallback model content
+    if (item.source === 'MODEL' && typeof item.content === 'string' && item.content.trim().length > 0) {
+      return [
+        {
+          id: `${baseId}-text`,
+          sessionId: sid,
+          provider: PROVIDER,
+          role: 'assistant',
+          kind: 'text',
+          content: item.content,
+          text: item.content,
           timestamp: msgTs,
         },
       ];
@@ -198,6 +254,7 @@ export class AgySessionsProvider implements IProviderSessions {
     }
 
     const allMessages: NormalizedMessage[] = [];
+    let lastToolId: string | null = null;
     try {
       const stream = fs.createReadStream(transcriptPath, { encoding: 'utf8' });
       const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
@@ -208,6 +265,20 @@ export class AgySessionsProvider implements IProviderSessions {
         try {
           const parsed = JSON.parse(trimmed);
           const normalized = this.normalizeMessage(parsed, sessionId);
+
+          for (const msg of normalized) {
+            if (msg.kind === 'tool_use' && msg.toolId) {
+              lastToolId = msg.toolId;
+            } else if (msg.kind === 'tool_result') {
+              if (lastToolId) {
+                msg.toolId = lastToolId;
+                lastToolId = null;
+              }
+            } else if (msg.kind === 'text' && msg.role === 'user') {
+              lastToolId = null;
+            }
+          }
+
           allMessages.push(...normalized);
         } catch {
           // Ignore invalid JSON line in transcript
@@ -217,8 +288,29 @@ export class AgySessionsProvider implements IProviderSessions {
       console.warn(`[AgySessionsProvider] Failed to read transcript from ${transcriptPath}:`, err);
     }
 
-    const total = allMessages.length;
-    const { page, hasMore } = sliceTailPage(allMessages, limit, offset);
+    // Pair tool results to tool_use messages
+    const toolResultMap = new Map<string, NormalizedMessage>();
+    for (const msg of allMessages) {
+      if (msg.kind === 'tool_result' && msg.toolId) {
+        toolResultMap.set(msg.toolId, msg);
+      }
+    }
+    for (const msg of allMessages) {
+      if (msg.kind === 'tool_use' && msg.toolId && toolResultMap.has(msg.toolId)) {
+        const toolResult = toolResultMap.get(msg.toolId);
+        if (toolResult) {
+          msg.toolResult = {
+            content: toolResult.content,
+            isError: toolResult.isError,
+          };
+        }
+      }
+    }
+
+    // Filter out paired tool_result rows and cap oversized outputs to protect main thread rendering
+    const transcript = prepareTranscriptMessages(allMessages);
+    const total = transcript.length;
+    const { page, hasMore } = sliceTailPage(transcript, limit, offset);
 
     return {
       messages: page,

@@ -1369,6 +1369,9 @@ export type ProviderQuotaData = {
   models?: ProviderModelQuotaItem[];
   totalModels?: number;
   averagePercentage?: number;
+  weeklyPercentage?: number;
+  weeklyUsedPercentage?: number;
+  nextResetTime?: string | null;
   totalGranted?: number;
   totalUsed?: number;
   totalAvailable?: number;

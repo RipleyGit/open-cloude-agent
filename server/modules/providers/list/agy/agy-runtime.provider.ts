@@ -65,9 +65,17 @@ export class AgyRuntime implements IProviderRuntime {
         command,
         '--output-format',
         'stream-json',
-        '--dangerously-skip-permissions',
         '--disable-slash-commands',
       ];
+
+      const permissionMode = typeof options.permissionMode === 'string' ? options.permissionMode : 'default';
+      if (permissionMode === 'plan') {
+        args.push('--mode', 'plan', '--dangerously-skip-permissions');
+      } else if (permissionMode === 'acceptEdits') {
+        args.push('--mode', 'accept-edits', '--dangerously-skip-permissions');
+      } else {
+        args.push('--dangerously-skip-permissions');
+      }
 
       if (resolvedModel) {
         args.push('--model', resolvedModel);

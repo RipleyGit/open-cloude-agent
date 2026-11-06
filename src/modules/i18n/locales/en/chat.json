@@ -387,6 +387,7 @@
       "costEyebrow": "Session telemetry",
       "costTitle": "Token Usage",
       "costSubtitle": "Input, output, and total token counts for this session.",
+      "agyCostSubtitle": "Antigravity account connection, weekly usage, and model quota details.",
       "statusEyebrow": "Runtime health",
       "statusTitle": "System Status",
       "statusSubtitle": "Version, provider, runtime, and environment details in one place.",
@@ -401,6 +402,8 @@
     "expandImage": "Expand {{name}}",
     "tokensLabel_one": "token",
     "tokensLabel_other": "tokens",
+    "sessionTokenUsage": "Current session token usage",
+    "contextWindow": "Context window",
     "escClosesModal": "Esc closes the modal.",
     "close": "Close"
   },

@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Activity,
@@ -23,9 +23,16 @@ import type {
   LLMProvider,
   ProviderModelActions,
   ProviderModelOption,
-  ProviderModelsDefinition,CommandModalPayload,CostCommandData,HelpCommandData,ModelCommandData,StatusCommandData
+  ProviderModelsDefinition,
+  CommandModalPayload,
+  CostCommandData,
+  HelpCommandData,
+  ModelCommandData,
+  StatusCommandData,
 } from '@/shared/types';
 import ModelLibraryPanel from '@/modules/chat/modals/ModelLibraryPanel';
+import { AccountContent } from '@/modules/settings';
+import { ProviderLoginModal, useProviderAuthStatus } from '@/modules/provider-auth';
 
 type CommandResultModalProps = {
   payload: CommandModalPayload | null;
@@ -514,6 +521,85 @@ function CostContent({ data }: { data: CostCommandData }) {
   );
 }
 
+type AgyCostContentProps = {
+  data: CostCommandData;
+};
+
+/**
+ * Rendered when the current agent is Antigravity CLI ('agy'): loads and displays
+ * the user's account info, weekly usage overview, countdowns, and per-model quotas.
+ */
+function AgyCostContent({ data }: AgyCostContentProps) {
+  const { t } = useTranslation('chat');
+  const { providerAuthStatus, checkProviderAuthStatus } = useProviderAuthStatus();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  useEffect(() => {
+    checkProviderAuthStatus('agy');
+  }, [checkProviderAuthStatus]);
+
+  const used = Number(data.tokenUsage?.used ?? 0);
+  const total = Number(data.tokenUsage?.total ?? 0);
+  const hasBreakdown =
+    typeof data.tokenBreakdown?.input === 'number' ||
+    typeof data.tokenBreakdown?.output === 'number';
+  const hasTokenUsage = used > 0;
+
+  return (
+    <div className="scrollbar-thin -mr-1 flex h-full min-h-0 flex-col overflow-y-auto pr-1 space-y-4">
+      {hasTokenUsage && (
+        <div className="rounded-2xl border border-border/70 bg-background/80 p-3.5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Activity className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  {t('misc.sessionTokenUsage', { defaultValue: '当前会话 Token 消耗' })}
+                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-mono">
+                  <span>{formatNumber(used)} tokens</span>
+                  {hasBreakdown && (
+                    <span className="text-muted-foreground/70">
+                      ({formatNumber(Number(data.tokenBreakdown?.input ?? 0))} in / {formatNumber(Number(data.tokenBreakdown?.output ?? 0))} out)
+                    </span>
+                  )}
+                  {total > used && (
+                    <span className="text-muted-foreground/70">
+                      · {t('misc.contextWindow', { defaultValue: '上下文窗口' })}: {formatNumber(total)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            {data.model && (
+              <Badge variant="outline" className="font-mono text-xs">
+                {data.model}
+              </Badge>
+            )}
+          </div>
+        </div>
+      )}
+
+      <AccountContent
+        agent="agy"
+        authStatus={providerAuthStatus.agy}
+        onLogin={() => setShowLoginModal(true)}
+      />
+
+      <ProviderLoginModal
+        provider="agy"
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false);
+          checkProviderAuthStatus('agy');
+        }}
+      />
+    </div>
+  );
+}
+
 function StatusContent({ data }: { data: StatusCommandData }) {
   const memoryRssMb = data.memoryUsage?.rssMb;
   const rows = [
@@ -598,6 +684,8 @@ function CommandResultModal({
     },
   } as const;
 
+  const isAgy = activeProvider === 'agy' || (payload?.data as CostCommandData)?.provider === 'agy';
+  const isAgyCost = payload?.kind === 'cost' && isAgy;
   const activeMeta = kind ? modalMeta[kind] : null;
   const HeaderIcon = activeMeta?.icon || Sparkles;
 
@@ -608,16 +696,16 @@ function CommandResultModal({
 
         <div
           className={`flex shrink-0 items-start justify-between gap-3 border-b border-border bg-popover ${
-            isModelsModal ? 'px-4 py-3 sm:px-5 sm:py-4' : 'px-4 py-4 sm:px-6 sm:py-5'
+            isModelsModal || isAgyCost ? 'px-4 py-3 sm:px-5 sm:py-4' : 'px-4 py-4 sm:px-6 sm:py-5'
           }`}
         >
           <div className="flex min-w-0 items-center gap-3">
             <div
               className={`flex shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-foreground ${
-                isModelsModal ? 'h-9 w-9' : 'h-10 w-10'
+                isModelsModal || isAgyCost ? 'h-9 w-9' : 'h-10 w-10'
               }`}
             >
-              <HeaderIcon className={isModelsModal ? 'h-4 w-4' : 'h-5 w-5'} />
+              <HeaderIcon className={isModelsModal || isAgyCost ? 'h-4 w-4' : 'h-5 w-5'} />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -627,7 +715,11 @@ function CommandResultModal({
                 {activeMeta?.title}
               </p>
               <p className="mt-0.5 max-w-2xl text-sm leading-5 text-muted-foreground">
-                {activeMeta?.subtitle}
+                {isAgyCost
+                  ? t('chat:misc.modalMeta.agyCostSubtitle', {
+                      defaultValue: 'Antigravity 账号连接状态、每周用量与支持模型额度',
+                    })
+                  : activeMeta?.subtitle}
               </p>
             </div>
           </div>
@@ -657,7 +749,13 @@ function CommandResultModal({
               onSelectProviderModel={onSelectProviderModel}
             />
           )}
-          {payload?.kind === 'cost' && <CostContent data={payload.data as CostCommandData} />}
+          {payload?.kind === 'cost' && (
+            isAgy ? (
+              <AgyCostContent data={payload.data as CostCommandData} />
+            ) : (
+              <CostContent data={payload.data as CostCommandData} />
+            )
+          )}
           {payload?.kind === 'status' && <StatusContent data={payload.data as StatusCommandData} />}
         </div>
 
