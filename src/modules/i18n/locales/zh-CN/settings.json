@@ -207,6 +207,29 @@
         "label": "字体大小",
         "description": "编辑器字体大小（px）"
       }
+    },
+    "keepProjectsExpanded": {
+      "section": "侧边栏",
+      "label": "保持项目展开",
+      "description": "同时展开多个项目并在刷新页面后记住其展开状态。"
+    },
+    "toolDisplay": {
+      "title": "工具显示",
+      "showThinking": {
+        "label": "显示思考过程",
+        "description": "在聊天中展开并展示模型的思考与推理内容"
+      },
+      "showRawParameters": {
+        "label": "显示原始参数",
+        "description": "在工具调用卡片中展示完整的原始参数与输入输出"
+      }
+    },
+    "inputSettings": {
+      "title": "输入设置",
+      "sendByCtrlEnter": {
+        "label": "使用 Ctrl+Enter 发送",
+        "description": "启用后，按 Ctrl+Enter 发送消息，而不是仅按 Enter。这对于使用输入法的用户可以避免意外发送。"
+      }
     }
   },
   "mcpForm": {

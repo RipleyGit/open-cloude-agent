@@ -19,7 +19,7 @@ type AppearanceSettingsTabProps = {
   onCodeEditorFontSizeChange: (value: string) => void;
 };
 
-/** Rendered by Settings for the "appearance" tab, covering theme, project sorting and code editor preferences. */
+/** Rendered by Settings for the "appearance" tab, covering theme, language, tool display, input, project sorting and code editor preferences. */
 export default function AppearanceSettingsTab({
   projectSortOrder,
   onProjectSortOrderChange,
@@ -59,6 +59,73 @@ export default function AppearanceSettingsTab({
       <SettingsSection title={t('mainTabs.appearance')}>
         <SettingsCard>
           <LanguageSelector />
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t('appearanceSettings.toolDisplay.title', {
+          defaultValue: t('quickSettings.sections.toolDisplay', { defaultValue: 'Tool Display' }),
+        })}
+      >
+        <SettingsCard divided>
+          <SettingsRow
+            label={t('appearanceSettings.toolDisplay.showThinking.label', {
+              defaultValue: t('quickSettings.showThinking', { defaultValue: 'Show thinking process' }),
+            })}
+            description={t('appearanceSettings.toolDisplay.showThinking.description', {
+              defaultValue: 'Display model reasoning and thinking process in chat.',
+            })}
+          >
+            <SettingsToggle
+              checked={preferences.showThinking}
+              onChange={(value) => setPreference('showThinking', value)}
+              ariaLabel={t('appearanceSettings.toolDisplay.showThinking.label', {
+                defaultValue: t('quickSettings.showThinking', { defaultValue: 'Show thinking process' }),
+              })}
+            />
+          </SettingsRow>
+
+          <SettingsRow
+            label={t('appearanceSettings.toolDisplay.showRawParameters.label', {
+              defaultValue: t('quickSettings.showRawParameters', { defaultValue: 'Show raw tool parameters' }),
+            })}
+            description={t('appearanceSettings.toolDisplay.showRawParameters.description', {
+              defaultValue: 'Display raw parameter inputs and outputs in tool call cards.',
+            })}
+          >
+            <SettingsToggle
+              checked={preferences.showRawParameters}
+              onChange={(value) => setPreference('showRawParameters', value)}
+              ariaLabel={t('appearanceSettings.toolDisplay.showRawParameters.label', {
+                defaultValue: t('quickSettings.showRawParameters', { defaultValue: 'Show raw tool parameters' }),
+              })}
+            />
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t('appearanceSettings.inputSettings.title', {
+          defaultValue: t('quickSettings.sections.inputSettings', { defaultValue: 'Input Settings' }),
+        })}
+      >
+        <SettingsCard>
+          <SettingsRow
+            label={t('appearanceSettings.inputSettings.sendByCtrlEnter.label', {
+              defaultValue: t('quickSettings.sendByCtrlEnter', { defaultValue: 'Send by Ctrl+Enter' }),
+            })}
+            description={t('appearanceSettings.inputSettings.sendByCtrlEnter.description', {
+              defaultValue: t('quickSettings.sendByCtrlEnterDescription'),
+            })}
+          >
+            <SettingsToggle
+              checked={preferences.sendByCtrlEnter}
+              onChange={(value) => setPreference('sendByCtrlEnter', value)}
+              ariaLabel={t('appearanceSettings.inputSettings.sendByCtrlEnter.label', {
+                defaultValue: t('quickSettings.sendByCtrlEnter', { defaultValue: 'Send by Ctrl+Enter' }),
+              })}
+            />
+          </SettingsRow>
         </SettingsCard>
       </SettingsSection>
 

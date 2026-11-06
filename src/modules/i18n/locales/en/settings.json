@@ -212,6 +212,24 @@
       "section": "Sidebar",
       "label": "Keep projects expanded",
       "description": "Open several projects together and remember them after reloading."
+    },
+    "toolDisplay": {
+      "title": "Tool Display",
+      "showThinking": {
+        "label": "Show thinking process",
+        "description": "Display model reasoning and thinking process in chat."
+      },
+      "showRawParameters": {
+        "label": "Show raw tool parameters",
+        "description": "Display raw parameter inputs and outputs in tool call cards."
+      }
+    },
+    "inputSettings": {
+      "title": "Input Settings",
+      "sendByCtrlEnter": {
+        "label": "Send by Ctrl+Enter",
+        "description": "When enabled, pressing Ctrl+Enter will send the message instead of just Enter. This is useful for IME users to avoid accidental sends."
+      }
     }
   },
   "mcpForm": {
