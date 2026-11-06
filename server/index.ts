@@ -75,6 +75,12 @@ const RUNNING_VERSION = (() => {
         return null;
     }
 })();
+
+/**
+ * Unique server instance identifier generated on process startup.
+ * The client compares this against stored state to detect server restarts.
+ */
+export const SERVER_BOOT_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const systemRoutes = createSystemModule({
     appRoot: APP_ROOT,
     installMode,
@@ -141,10 +147,17 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Attach server boot identifier to all responses so clients detect server restarts.
+app.use((_req, res, next) => {
+    res.setHeader('x-server-boot-id', SERVER_BOOT_ID);
+    next();
+});
+
 // Public health check endpoint (no authentication required)
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
+        bootId: SERVER_BOOT_ID,
         timestamp: new Date().toISOString(),
         installMode,
         version: RUNNING_VERSION

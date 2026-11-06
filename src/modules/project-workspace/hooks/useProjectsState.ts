@@ -10,6 +10,10 @@ import type { ServerEvent,
   Project,
   ProjectSession,IsSessionProcessing } from '@/shared/types';
 import { mergeProjectSelectionMetadata } from '@/modules/project-workspace/utils/projectSelectionMetadata';
+import {
+  persistActiveProjectAndSession,
+  resolveInitialProjectAndSession,
+} from '@/modules/project-workspace/utils/sessionRestore';
 import { readSelectedProvider } from '@/shared/selectedProvider';
 
 type UseProjectsStateArgs = {
@@ -471,6 +475,8 @@ export function useProjectsState({
    * same payload — the workspace header and document title.
    */
   const projectsRequestIdRef = useRef(0);
+  const serverBootIdRef = useRef<string | null>(null);
+  const initialRestoreDoneRef = useRef(false);
 
   useEffect(() => {
     sessionLookupRef.current = null;
@@ -524,6 +530,10 @@ export function useProjectsState({
         setIsLoadingProjects(true);
       }
       const response = await api.projects();
+      const serverBootId = response?.headers?.get ? response.headers.get('x-server-boot-id') : null;
+      if (serverBootId) {
+        serverBootIdRef.current = serverBootId;
+      }
       const projectData = (await response.json()) as Project[];
 
       if (projectsRequestIdRef.current !== requestId) {
@@ -716,12 +726,41 @@ export function useProjectsState({
     void hydrateProjectTaskMaster(selectedProject.projectId);
   }, [hydrateProjectTaskMaster, selectedProject?.projectId]);
 
-  // Auto-select the project when there is only one, so the user lands on the new session page
+  // Restore the last active project and session on entry, or newest active session on server restart.
   useEffect(() => {
-    if (!isLoadingProjects && projects.length === 1 && !selectedProject && !sessionId) {
-      setSelectedProject(projects[0]);
+    if (isLoadingProjects || projects.length === 0 || initialRestoreDoneRef.current) {
+      return;
     }
-  }, [isLoadingProjects, projects, selectedProject, sessionId]);
+
+    // If an explicit session ID is in the URL, respect it and mark initial restore as completed
+    if (sessionId) {
+      initialRestoreDoneRef.current = true;
+      return;
+    }
+
+    initialRestoreDoneRef.current = true;
+    const resolved = resolveInitialProjectAndSession({
+      projects,
+      serverBootId: serverBootIdRef.current,
+    });
+
+    if (resolved.project) {
+      setSelectedProject(resolved.project);
+    }
+    if (resolved.session) {
+      setSelectedSession(normalizeSessionProvider(resolved.session));
+      if (resolved.targetSessionIdToNavigate) {
+        navigate(`/session/${resolved.targetSessionIdToNavigate}`, { replace: true });
+      }
+    }
+  }, [isLoadingProjects, navigate, projects, sessionId]);
+
+  // Persist currently viewed project and session so exiting and re-entering restores them.
+  useEffect(() => {
+    if (selectedProject?.projectId) {
+      persistActiveProjectAndSession(selectedProject.projectId, selectedSession?.id);
+    }
+  }, [selectedProject?.projectId, selectedSession?.id]);
 
   // Realtime sidebar updates. The backend pushes per-session deltas
   // (`session_upserted`) instead of full project snapshots, so each event is
