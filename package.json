@@ -31,7 +31,7 @@
     "preserver": "node scripts/promote-dist-server.mjs recover",
     "server": "node dist-server/server/index.js",
     "server:dev": "tsx --tsconfig server/tsconfig.json server/index.ts",
-    "server:dev-watch": "tsx watch --tsconfig server/tsconfig.json server/index.ts",
+    "server:dev-watch": "node scripts/dev-server-watchdog.mjs",
     "client": "vite",
     "desktop": "electron electron/main.js",
     "desktop:dev": "cross-env ELECTRON_DEV_URL=http://127.0.0.1:5173 electron electron/main.js",

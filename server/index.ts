@@ -409,8 +409,22 @@ async function startServer() {
 
         await closeSessionsWatcher();
         closeScheduledMessageDispatcher();
-        // Clean up plugin processes on shutdown
+        // Clean up plugin processes on shutdown.
+        //
+        // A hard timeout caps the whole shutdown: each step below can hang
+        // (a plugin subprocess that ignores SIGTERM, a browser session that
+        // won't close), and without a cap the server stays alive past tsx
+        // watch's 5s SIGKILL deadline. That left zombie tsx/concurrently
+        // processes behind every restart. 3s leaves room for graceful cleanup
+        // while guaranteeing process.exit(0) fires before tsx's 5s cutoff.
+        const SHUTDOWN_TIMEOUT_MS = 3000;
         const shutdownRuntimeServices = async () => {
+            const forceExit = setTimeout(() => {
+                console.error('[Shutdown] Exceeded hard timeout, forcing exit.');
+                process.exit(0);
+            }, SHUTDOWN_TIMEOUT_MS);
+            forceExit.unref();
+
             try {
                 await browserUseService.stopAllSessions();
             } catch (err) {
@@ -426,6 +440,7 @@ async function startServer() {
             } catch (err) {
                 console.error('[Local Server] Error removing server marker during shutdown:', getErrorMessage(err));
             }
+            clearTimeout(forceExit);
             process.exit(0);
         };
         process.on('SIGTERM', () => void shutdownRuntimeServices());

@@ -156,13 +156,15 @@ export function stopPluginServer(name) {
 
     entry.process.kill('SIGTERM');
 
-    // Force kill after 5 seconds if still running
+    // Force kill after 2 seconds if still running. Kept well under the host's
+    // 3s shutdown hard timeout and tsx watch's 5s SIGKILL deadline, so a stuck
+    // plugin can't hold the whole shutdown past either cutoff.
     const forceKillTimer = setTimeout(() => {
       if (runningPlugins.has(name)) {
         entry.process.kill('SIGKILL');
         cleanup();
       }
-    }, 5000);
+    }, 2000);
 
     console.log(`[Plugins] Server stopped for "${name}"`);
   });
