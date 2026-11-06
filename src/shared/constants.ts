@@ -223,3 +223,18 @@ export const PROVIDER_PERMISSION_PREFERENCE_KEYS: Record<LLMProvider, UserPrefer
   opencode: 'opencodePermissions',
   agy: 'agyPermissions',
 };
+
+//----------------- PROVIDER DISPLAY LABELS ------------
+
+/**
+ * Display names for the providers a session row can belong to. Used by the
+ * shared `SessionOptions` menu and the session rows in both the sidebar and the
+ * project sessions panel, so the two lists render the same provider label.
+ */
+export const PROVIDER_LABELS: Record<LLMProvider, string> = {
+  claude: 'Claude',
+  codex: 'Codex',
+  cursor: 'Cursor',
+  opencode: 'OpenCode',
+  agy: 'Antigravity',
+};

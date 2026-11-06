@@ -5,7 +5,7 @@ import { test, vi } from 'vitest';
 import type { Project, SessionWithProvider, SidebarProjectListProps } from '@/shared/types';
 
 vi.mock('@/modules/sidebar/hooks/useCompactSidebar', () => ({ useCompactSidebar: () => false }));
-vi.mock('@/modules/sidebar/SessionOptions', () => ({ default: () => null }));
+vi.mock('@/shared/ui/SessionOptions', () => ({ default: () => null }));
 const { default: SidebarSessionItem } = await import('@/modules/sidebar/SidebarSessionItem');
 const project = { projectId: 'project-1', name: 'project', fullPath: '/tmp/project', sessions: [] } as unknown as Project;
 const session = { id: 'session-1', summary: 'Fix login', __provider: 'claude', lastActivity: '2026-10-29T10:00:00Z' } as unknown as SessionWithProvider;

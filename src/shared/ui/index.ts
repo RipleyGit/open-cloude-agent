@@ -29,5 +29,7 @@ export { Input } from '@/shared/ui/Input';
 export { LLMProviderLogo } from '@/shared/ui/LLMProviderLogo';
 export { PillBar, Pill } from '@/shared/ui/PillBar';
 export { ScrollArea } from '@/shared/ui/ScrollArea';
+export { default as SessionBulkToolbar } from '@/shared/ui/SessionBulkToolbar';
+export { default as SessionOptions } from '@/shared/ui/SessionOptions';
 export { Shimmer } from '@/shared/ui/Shimmer';
 export { Tooltip } from '@/shared/ui/Tooltip';

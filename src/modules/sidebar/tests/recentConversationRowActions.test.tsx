@@ -16,7 +16,7 @@ import type { ActiveSidebarRename, RecentConversationListItem, SessionRowActions
 
 const recordedOptionsProps: Record<string, unknown>[] = [];
 
-vi.mock('@/modules/sidebar/SessionOptions', () => ({
+vi.mock('@/shared/ui/SessionOptions', () => ({
   default: (props: Record<string, unknown>) => {
     recordedOptionsProps.push(props);
     return null;

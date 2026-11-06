@@ -2,11 +2,10 @@ import { Loader2, MessageSquare } from 'lucide-react';
 import type { MouseEvent } from 'react';
 import type { TFunction } from 'i18next';
 
-import { Button, LLMProviderLogo, Tooltip } from '@/shared/ui';
+import { Button, LLMProviderLogo, SessionOptions, Tooltip } from '@/shared/ui';
 import { cn } from '@/shared/utils';
 import type { ProjectSession, RecentConversationListItem, SessionRowActions } from '@/shared/types';
 import { formatCompactAge } from '@/modules/sidebar/utils/sidebarProjectFormatting';
-import SessionOptions from '@/modules/sidebar/SessionOptions';
 
 type SidebarRecentConversationsProps = {
   conversations: RecentConversationListItem[];

@@ -161,8 +161,13 @@ function WorkspaceMain({
         onShowSettings={onShowSettings}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className={`flex min-h-0 min-w-[200px] flex-col overflow-hidden ${editorExpanded ? 'hidden' : ''} flex-1`}>
+      {/* Below the header: the sessions drawer is portaled here so it stays
+          confined to the content area rather than covering the tab bar. */}
+      <div
+        id="workspace-content-region"
+        className="relative flex min-h-0 flex-1 overflow-hidden"
+      >
+        <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden sm:min-w-[200px] ${editorExpanded ? 'hidden' : ''} flex-1`}>
           <div className={`h-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
             <WorkspaceErrorBoundary showDetails>
               <ChatInterface

@@ -1,7 +1,7 @@
-import { CheckSquare, Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
-import { Button } from '@/shared/ui';
+import { Button, SessionBulkToolbar } from '@/shared/ui';
 import { cn } from '@/shared/utils';
 import type { LLMProvider, Project, ProjectSession, SessionWithProvider, SidebarSessionSelection } from '@/shared/types';
 import SidebarSessionItem from '@/modules/sidebar/SidebarSessionItem';
@@ -150,62 +150,28 @@ export default function SidebarProjectSessions({
       )}
 
       {(isSelecting || (initialSessionsLoaded && selectableSessionIds.length > 0)) && (
-        <div className={cn('space-y-1', isCompact && 'px-3')}>
-          {isSelecting ? (
-            <>
-              {/* Wraps rather than clips: at the narrowest sidebar width a long
-                  translated "Select all loaded" leaves no room for Cancel. */}
-              <div className="flex flex-wrap items-center justify-between gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() =>
-                    onSetSessionSelection({
-                      projectId: project.projectId,
-                      sessionIds: new Set(allLoadedSelected ? [] : selectableSessionIds),
-                    })
-                  }
-                  disabled={selectableSessionIds.length === 0}
-                >
-                  {selectAllLabel}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={onCancelSessionSelection}
-                >
-                  {t('actions.cancel')}
-                </Button>
-              </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-8 w-full justify-center gap-2 bg-red-600 text-xs font-medium text-white hover:bg-red-700"
-                onClick={() => onDeleteSelectedSessions(effectiveSelectedIds)}
-                disabled={effectiveSelectedIds.length === 0}
-              >
-                <Trash2 className="h-3 w-3" />
-                {t('sessions.deleteSelected', { count: effectiveSelectedIds.length })}
-              </Button>
-            </>
-          ) : (
-            <div className="flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() =>
-                  onSetSessionSelection({ projectId: project.projectId, sessionIds: new Set() })
-                }
-              >
-                <CheckSquare className="h-3 w-3" />
-                {t('sessions.select')}
-              </Button>
-            </div>
-          )}
-        </div>
+        <SessionBulkToolbar
+          className={cn('space-y-1', isCompact && 'px-3')}
+          isSelecting={isSelecting}
+          selectLabel={t('sessions.select')}
+          onStartSelection={() =>
+            onSetSessionSelection({ projectId: project.projectId, sessionIds: new Set() })
+          }
+          selectAllLabel={selectAllLabel}
+          canSelectAll={selectableSessionIds.length > 0}
+          onToggleSelectAll={() =>
+            onSetSessionSelection({
+              projectId: project.projectId,
+              sessionIds: new Set(allLoadedSelected ? [] : selectableSessionIds),
+            })
+          }
+          cancelLabel={t('actions.cancel')}
+          onCancelSelection={onCancelSessionSelection}
+          deleteLabel={t('sessions.deleteSelected', { count: effectiveSelectedIds.length })}
+          selectedCount={effectiveSelectedIds.length}
+          canDelete={effectiveSelectedIds.length > 0}
+          onDeleteSelected={() => onDeleteSelectedSessions(effectiveSelectedIds)}
+        />
       )}
 
       {/* A page emptied by deleting every loaded row still has sessions behind

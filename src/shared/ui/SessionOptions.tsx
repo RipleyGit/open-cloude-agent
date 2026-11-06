@@ -2,12 +2,12 @@ import { useEffect, useRef } from 'react';
 import { Check, Edit2, GitBranch, MoreHorizontal, Trash2, X } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
-import { ActionMenu } from '@/shared/ui';
+import { ActionMenu } from '@/shared/ui/ActionMenu';
 import { cn } from '@/shared/utils';
 import type { LLMProvider } from '@/shared/types';
 import { useSessionForkingProviders } from '@/shared/hooks/useProviderCapabilities';
-import { useProviderSessionIdCopy } from '@/modules/sidebar/hooks/useProviderSessionIdCopy';
-import { PROVIDER_LABELS } from '@/modules/sidebar/utils/sidebarProjectFormatting';
+import { useProviderSessionIdCopy } from '@/shared/hooks/useProviderSessionIdCopy';
+import { PROVIDER_LABELS } from '@/shared/constants';
 
 type SessionOptionsProps = {
   sessionId: string;
@@ -39,10 +39,11 @@ type SessionOptionsProps = {
  * A session row's controls: the options menu, and the inline rename that
  * replaces it while a rename is open.
  *
- * Shared by the Projects list and the Conversations list so the two rows cannot
- * drift — the first cut of the Conversations row copied this markup, which is
- * how two rows end up diverging one fix at a time. Callers keep only what is
- * genuinely theirs: where the controls sit, and whether deleting is offered.
+ * Shared by the sidebar's Projects and Conversations lists and the project
+ * sessions panel so the three rows cannot drift — the first cut of the
+ * Conversations row copied this markup, which is how two rows end up diverging
+ * one fix at a time. Callers keep only what is genuinely theirs: where the
+ * controls sit, and whether deleting is offered.
  */
 export default function SessionOptions({
   sessionId,

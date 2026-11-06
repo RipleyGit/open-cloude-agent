@@ -21,7 +21,7 @@ vi.mock('@/shared/hooks/useProviderCapabilities', () => ({
   useSessionForkingProviders: () => new Set(),
 }));
 
-vi.mock('@/modules/sidebar/SessionOptions', () => ({
+vi.mock('@/shared/ui/SessionOptions', () => ({
   default: (props: Record<string, unknown>) => {
     recordedOptionsProps.push(props);
     return null;

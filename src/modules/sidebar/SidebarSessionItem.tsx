@@ -3,14 +3,14 @@ import type { KeyboardEvent } from 'react';
 import { Check, CheckSquare, Edit2, GitBranch, Loader2, MoreHorizontal, Square, Trash2, X } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
-import { Badge, Dialog, DialogContent, DialogTitle, LLMProviderLogo, Tooltip, buttonVariants } from '@/shared/ui';
+import { Badge, Dialog, DialogContent, DialogTitle, LLMProviderLogo, SessionOptions, Tooltip, buttonVariants } from '@/shared/ui';
 import { cn } from '@/shared/utils';
+import { PROVIDER_LABELS } from '@/shared/constants';
 import type { LLMProvider, Project, ProjectSession, SessionWithProvider } from '@/shared/types';
 import { useSessionForkingProviders } from '@/shared/hooks/useProviderCapabilities';
-import { PROVIDER_LABELS, createSessionViewModel, formatCompactAge } from '@/modules/sidebar/utils/sidebarProjectFormatting';
+import { useProviderSessionIdCopy } from '@/shared/hooks/useProviderSessionIdCopy';
+import { createSessionViewModel, formatCompactAge } from '@/modules/sidebar/utils/sidebarProjectFormatting';
 import { useCompactSidebar } from '@/modules/sidebar/hooks/useCompactSidebar';
-import { useProviderSessionIdCopy } from '@/modules/sidebar/hooks/useProviderSessionIdCopy';
-import SessionOptions from '@/modules/sidebar/SessionOptions';
 
 type SidebarSessionItemProps = {
   project: Project;
