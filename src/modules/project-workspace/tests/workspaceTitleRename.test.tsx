@@ -51,12 +51,17 @@ const session: ProjectSession = {
 
 const onRenameSession = vi.fn<(sessionId: string, summary: string) => Promise<boolean>>();
 
-const renderTitle = (overrides: { selectedSession?: ProjectSession | null; activeTab?: 'chat' | 'files' } = {}) => render(
+const renderTitle = (overrides: {
+  selectedSession?: ProjectSession | null;
+  activeTab?: 'chat' | 'files';
+  isMobile?: boolean;
+} = {}) => render(
   <WorkspaceTitle
     activeTab={overrides.activeTab ?? 'chat'}
     selectedProject={project}
     selectedSession={overrides.selectedSession === undefined ? session : overrides.selectedSession}
     shouldShowTasksTab={false}
+    isMobile={overrides.isMobile}
     onRenameSession={onRenameSession}
     onShowSettings={() => undefined}
   />,
@@ -195,6 +200,14 @@ test('the header provider icon opens that agent\'s settings tab preselected', ()
   fireEvent.click(screen.getByRole('button', { name: 'mainContent.agentSettings' }));
 
   assert.deepEqual(onShowSettings.mock.calls, [['agents', 'claude']]);
+});
+
+test('the session title stays single-line and hides the project subtitle on mobile', () => {
+  renderTitle({ isMobile: true });
+
+  assert.match(titleHeading().className, /truncate/);
+  assert.match(titleHeading().className, /whitespace-nowrap/);
+  assert.equal(screen.queryByText(project.displayName), null);
 });
 
 test('the title is not editable without a session or off the chat tab', () => {

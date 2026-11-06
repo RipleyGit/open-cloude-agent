@@ -11,6 +11,8 @@ type WorkspaceTitleProps = {
   selectedProject: Project;
   selectedSession: ProjectSession | null;
   shouldShowTasksTab: boolean;
+  /** Keeps the mobile header compact even when a landscape viewport crosses a CSS width breakpoint. */
+  isMobile?: boolean;
   /** Persists a new title for a session; resolves false when the backend refuses it. */
   onRenameSession: (sessionId: string, summary: string) => Promise<boolean>;
   /** Opens the settings dialog. The header's provider icon uses it to jump to that agent's settings tab. */
@@ -51,6 +53,7 @@ export default function WorkspaceTitle({
   selectedProject,
   selectedSession,
   shouldShowTasksTab,
+  isMobile = false,
   onRenameSession,
   onShowSettings,
 }: WorkspaceTitleProps) {
@@ -82,7 +85,7 @@ export default function WorkspaceTitle({
   });
 
   return (
-    <div className="scrollbar-hide flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
       {showSessionIcon && sessionProvider && (
         <button
           type="button"
@@ -118,12 +121,16 @@ export default function WorkspaceTitle({
               <h2
                 title={t('mainContent.renameSessionHint', { title: sessionTitle })}
                 onDoubleClick={startRenaming}
-                className="cursor-text truncate text-sm font-semibold leading-tight text-foreground"
+                className="min-w-0 cursor-text truncate whitespace-nowrap text-sm font-semibold leading-tight text-foreground"
               >
                 {sessionTitle}
               </h2>
             )}
-            <div className="truncate text-[11px] leading-tight text-muted-foreground">{selectedProject.displayName}</div>
+            {!isMobile && (
+              <div className="truncate text-[11px] leading-tight text-muted-foreground">
+                {selectedProject.displayName}
+              </div>
+            )}
           </div>
         ) : showChatNewSession ? (
           <div className="min-w-0">

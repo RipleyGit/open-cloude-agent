@@ -74,7 +74,7 @@ const PROJECT: Project = {
   sessionMeta: { hasMore: false, total: 0 },
 };
 
-const header = (activeTab: AppTab) => (
+const header = (activeTab: AppTab, isMobile = false) => (
   <WebSocketProvider>
     <WorkspaceHeader
       activeTab={activeTab}
@@ -83,7 +83,7 @@ const header = (activeTab: AppTab) => (
       selectedSession={null}
       shouldShowTasksTab={false}
       shouldShowBrowserTab={false}
-      isMobile={false}
+      isMobile={isMobile}
       onMenuClick={() => undefined}
       onRenameSession={async () => true}
       onShowSettings={() => undefined}
@@ -152,4 +152,12 @@ test('a first connection that fails is shown too', () => {
   render(header('chat'));
   act(() => latestSocket().serverDrops());
   assert.equal(isIndicatorShown(), true);
+});
+
+test('the mobile header keeps the title and tabs in one horizontal row', () => {
+  render(header('chat', true));
+
+  const headerLayout = screen.getByRole('banner').firstElementChild as HTMLElement;
+  assert.match(headerLayout.className, /items-center/);
+  assert.doesNotMatch(headerLayout.className, /flex-col/);
 });
