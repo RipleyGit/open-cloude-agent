@@ -137,7 +137,12 @@ function SidebarProjectItem({
   };
 
   return (
-    <div className={cn('md:space-y-1', isDeleting && 'opacity-50 pointer-events-none')}>
+    <div
+      // Scroll target for the session list's "locate project" control, which
+      // looks the row up by id rather than by a ref it cannot reach.
+      data-project-id={project.projectId}
+      className={cn('md:space-y-1', isDeleting && 'opacity-50 pointer-events-none')}
+    >
       <div className="sticky top-0 z-10 md:group group">
         {isCompact && (
         <div className="bg-background">

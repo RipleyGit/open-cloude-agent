@@ -1,4 +1,4 @@
-import { MessageCircleMore, Pin, X } from 'lucide-react';
+import { Crosshair, MessageCircleMore, Pin, X } from 'lucide-react';
 
 import { Badge, Button } from '@/shared/ui';
 
@@ -8,6 +8,9 @@ type ProjectSessionsHeaderProps = {
   /** Lit pin keeps the panel docked and expanded; a dim pin leaves it collapsed. */
   isPinned: boolean;
   onTogglePin: () => void;
+  /** Sends the user to the project behind the selected session: the sidebar
+   * expands that project's card and scrolls it into view. */
+  onLocateProject: () => void;
   /** Closes the panel. The desktop panel is docked rather than modal, so it
    * needs its own dismiss control instead of a backdrop to click. */
   onClose: () => void;
@@ -15,14 +18,15 @@ type ProjectSessionsHeaderProps = {
 
 /**
  * Header of the project sessions panel: title, project name, session count,
- * the close button and the pin toggle. The new-session button lives at the
- * foot of the list.
+ * the locate-project button, the close button and the pin toggle. The
+ * new-session button lives at the foot of the list.
  */
 export default function ProjectSessionsHeader({
   projectName,
   sessionCount,
   isPinned,
   onTogglePin,
+  onLocateProject,
   onClose,
 }: ProjectSessionsHeaderProps) {
   return (
@@ -43,6 +47,16 @@ export default function ProjectSessionsHeader({
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onLocateProject}
+          aria-label="定位当前项目"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          title="定位当前项目"
+        >
+          <Crosshair className="h-3.5 w-3.5" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"

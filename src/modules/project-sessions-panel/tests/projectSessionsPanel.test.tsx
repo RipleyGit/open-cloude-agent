@@ -59,6 +59,7 @@ describe('ProjectSessionsHeader', () => {
   it('renders project name, session count, a close button and the pin', () => {
     const onTogglePin = vi.fn();
     const onClose = vi.fn();
+    const onLocateProject = vi.fn();
 
     render(
       <ProjectSessionsHeader
@@ -66,6 +67,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={5}
         isPinned
         onTogglePin={onTogglePin}
+        onLocateProject={onLocateProject}
         onClose={onClose}
       />,
     );
@@ -80,6 +82,10 @@ describe('ProjectSessionsHeader', () => {
     fireEvent.click(screen.getByTitle('收起会话列表'));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.getByTitle('取消固定（收起会话列表）')).toBeDefined();
+
+    // The locate button jumps to the project behind the selected session.
+    fireEvent.click(screen.getByTitle('定位当前项目'));
+    expect(onLocateProject).toHaveBeenCalledTimes(1);
   });
 
   it('toggles the pin', () => {
@@ -90,6 +96,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={0}
         isPinned={false}
         onTogglePin={onTogglePin}
+        onLocateProject={vi.fn()}
         onClose={vi.fn()}
       />,
     );
@@ -107,6 +114,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={0}
         isPinned={false}
         onTogglePin={vi.fn()}
+        onLocateProject={vi.fn()}
         onClose={vi.fn()}
       />,
     );
@@ -120,6 +128,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={0}
         isPinned
         onTogglePin={vi.fn()}
+        onLocateProject={vi.fn()}
         onClose={vi.fn()}
       />,
     );
@@ -667,6 +676,19 @@ describe('ProjectSessionsPanel', () => {
       expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
       expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
     });
+
+    it('locates the project and stays docked beside the sidebar', () => {
+      // Locating a project is a look, not a dismissal: the panel is docked next
+      // to the sidebar it just revealed, so it stays open for further switching.
+      const onLocateProject = vi.fn();
+      render(<ProjectSessionsPanel {...panelProps} onLocateProject={onLocateProject} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByTitle('定位当前项目'));
+
+      expect(onLocateProject).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+    });
   });
 
   describe('as a drawer on mobile', () => {
@@ -774,6 +796,23 @@ describe('ProjectSessionsPanel', () => {
       fireEvent.pointerDown(document.body);
       expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
     });
+
+    it('closes the drawer after locating the project, uncovering the sidebar', () => {
+      // On mobile the drawer covers the whole window, so the sidebar it just
+      // revealed would sit underneath it: the drawer steps aside instead.
+      deviceSettings.isMobile = true;
+      const onLocateProject = vi.fn();
+
+      render(<ProjectSessionsPanel {...panelProps} onLocateProject={onLocateProject} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByTitle('定位当前项目'));
+
+      expect(onLocateProject).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+    });
+
     it('deletes from an unpinned drawer: the confirm dialog survives its own pointerdown', async () => {
       // Regression: the outside-click listener closed the unpinned drawer on the
       // pointerdown that preceded the dialog button's click. That unmounted the

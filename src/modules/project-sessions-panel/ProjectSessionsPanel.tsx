@@ -17,6 +17,7 @@ export type ProjectSessionsPanelProps = {
   onSessionDelete?: (sessionId: string) => void;
   onLoadMoreSessions?: (projectId: string) => void;
   onRenameSession?: (projectName: string, sessionId: string, summary: string, provider: LLMProvider) => void;
+  onLocateProject?: () => void;
   isLoading?: boolean;
   attentionSessionIds?: ReadonlySet<string>;
 };
@@ -43,6 +44,7 @@ function ProjectSessionsPanel({
   onSessionDelete,
   onLoadMoreSessions,
   onRenameSession,
+  onLocateProject,
   isLoading = false,
   attentionSessionIds,
 }: ProjectSessionsPanelProps) {
@@ -123,6 +125,17 @@ function ProjectSessionsPanel({
     [isPinned, onSessionSelect],
   );
 
+  // Locating the project is a jump out of this panel, so on mobile the drawer
+  // closes to uncover whatever the sidebar does with the request. On desktop the
+  // panel is docked beside the sidebar, so it stays and the user can keep
+  // switching sessions after looking at the project's files.
+  const handleLocateProject = useCallback(() => {
+    onLocateProject?.();
+    if (isMobile) {
+      setIsOpen(false);
+    }
+  }, [isMobile, onLocateProject]);
+
   // Clicking outside an unpinned panel closes it — the chat window, or any
   // blank area of the workspace. That is what makes the panel feel transient:
   // it steps aside the moment the user goes back to the conversation, and the
@@ -197,6 +210,7 @@ function ProjectSessionsPanel({
         sessionCount={sessions.length}
         isPinned={isPinned}
         onTogglePin={togglePin}
+        onLocateProject={handleLocateProject}
         onClose={close}
       />
       <ProjectSessionsList

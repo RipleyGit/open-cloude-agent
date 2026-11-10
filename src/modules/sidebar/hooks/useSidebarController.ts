@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 
 import { api } from '@/shared/api';
+import { REVEAL_PROJECT_EVENT } from '@/shared/constants';
 import { subscribeToUserPreferences } from '@/shared/userSettings';
 import { usePaletteOps } from '@/modules/command-palette';
 import type { ArchivedProjectListItem, ArchivedSessionListItem, ConversationProjectResult, ConversationSearchResults, LLMProvider, Project, ProjectSession, ProjectSortOrder, RecentConversationListItem, SearchProgress, ActiveSidebarRename, PendingSidebarDeletion, SessionTitleSearchResult, SessionWithProvider, SidebarSearchMode, SidebarSessionSelection } from '@/shared/types';
@@ -1295,6 +1296,46 @@ export function useSidebarController({
   const expandSidebar = useCallback(() => {
     setSidebarVisible(true);
   }, [setSidebarVisible]);
+
+  // The workspace's session list asks for a project to be revealed, which the
+  // selected-project effect above cannot do: that project is already selected,
+  // so its identity has not changed. Re-adding it here re-opens a card the user
+  // collapsed by hand, and the row is scrolled to once it has rendered. The
+  // listener sits below `expandSidebar` because its dependency array reads it
+  // during render, which a declaration further down would not have run yet.
+  useEffect(() => {
+    const handleRevealProject = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: unknown }>).detail;
+      if (typeof detail?.projectId !== 'string') {
+        return;
+      }
+
+      const { projectId } = detail;
+      // A collapsed desktop sidebar would leave the reveal invisible, so it is
+      // restored first. On mobile the workspace opens the sidebar's drawer.
+      if (!isMobile && !sidebarVisible) {
+        expandSidebar();
+      }
+      setExpandedProjects((prev) => {
+        if (prev.has(projectId)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.add(projectId);
+        return next;
+      });
+
+      window.requestAnimationFrame(() => {
+        const row = Array.from(
+          document.querySelectorAll<HTMLElement>('[data-project-id]'),
+        ).find((element) => element.dataset.projectId === projectId);
+        row?.scrollIntoView({ block: 'nearest' });
+      });
+    };
+
+    window.addEventListener(REVEAL_PROJECT_EVENT, handleRevealProject);
+    return () => window.removeEventListener(REVEAL_PROJECT_EVENT, handleRevealProject);
+  }, [expandSidebar, isMobile, sidebarVisible]);
 
   // Wrapped rather than reset from an effect: leaving the Projects tab hides the
   // ticked rows, and a selection left behind would come back with the tab.

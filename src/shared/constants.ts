@@ -238,3 +238,14 @@ export const PROVIDER_LABELS: Record<LLMProvider, string> = {
   opencode: 'OpenCode',
   agy: 'Antigravity',
 };
+
+//----------------- WORKSPACE WINDOW EVENTS ------------
+
+/**
+ * Fired on `window` to ask the sidebar to reveal one project: expand its card
+ * and scroll it into view. Dispatched by the workspace's session list, whose
+ * "locate project" control sends the user straight to the project behind the
+ * selected session. A window event rather than a prop because the expansion
+ * state is private to the sidebar module and cannot be reached across modules.
+ */
+export const REVEAL_PROJECT_EVENT = 'cloudcli:reveal-project';
