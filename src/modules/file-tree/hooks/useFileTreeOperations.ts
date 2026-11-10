@@ -3,21 +3,11 @@ import { useTranslation } from 'react-i18next';
 import JSZip from 'jszip';
 
 import { api } from '@/shared/api';
-import type { FileTreeNode,Project } from '@/shared/types';
+import type { DeleteConfirmation, FileTreeNode, Project } from '@/shared/types';
 
 // Invalid filename characters
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
 const RESERVED_NAMES = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
-
-export type ToastMessage = {
-  message: string;
-  type: 'success' | 'error';
-};
-
-export type DeleteConfirmation = {
-  isOpen: boolean;
-  item: FileTreeNode | null;
-};
 
 export type UseFileTreeOperationsOptions = {
   selectedProject: Project | null;

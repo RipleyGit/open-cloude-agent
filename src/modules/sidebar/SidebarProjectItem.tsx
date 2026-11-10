@@ -5,9 +5,9 @@ import type { TFunction } from 'i18next';
 import { Button } from '@/shared/ui';
 import { cn } from '@/shared/utils';
 import type { LLMProvider, MCPServerStatus, Project, ProjectSession, SessionWithProvider, SidebarSessionSelection } from '@/shared/types';
+import { FileTreeInline } from '@/modules/file-tree';
 import { getProjectPathLabel, getTaskIndicatorStatus } from '@/modules/sidebar/utils/sidebarProjectFormatting';
 import TaskIndicator from '@/modules/sidebar/TaskIndicator';
-import SidebarProjectSessions from '@/modules/sidebar/SidebarProjectSessions';
 import { useCompactSidebar } from '@/modules/sidebar/hooks/useCompactSidebar';
 
 type SidebarProjectItemProps = {
@@ -54,6 +54,8 @@ type SidebarProjectItemProps = {
   onToggleSessionSelected: (projectId: string, sessionId: string) => void;
   onCancelSessionSelection: () => void;
   onDeleteSelectedSessions: (sessionIds: string[]) => void;
+  /** Opens a file from the expanded card's tree in the workspace editor; the sidebar resolves the project. */
+  onFileOpen?: (project: Project, filePath: string) => void;
   t: TFunction;
 };
 
@@ -66,18 +68,12 @@ const getSessionCountDisplay = (project: Project, sessions: SessionWithProvider[
 function SidebarProjectItem({
   project,
   selectedProject,
-  selectedSession,
   isExpanded,
   isDeleting,
   isStarred,
   isEditing,
   renameDraft,
   sessions,
-  initialSessionsLoaded,
-  isLoadingMoreSessions,
-  currentTime,
-  sessionRenameId,
-  sessionRenameDraft,
   tasksEnabled,
   mcpServerStatus,
   onRenameDraftChange,
@@ -88,22 +84,7 @@ function SidebarProjectItem({
   onCancelEditingProject,
   onSaveProjectName,
   onDeleteProject,
-  onSessionSelect,
-  onDeleteSession,
-  onForkSession,
-  onLoadMoreSessions,
-  activeSessions,
-  backgroundSessionIds,
-  attentionSessionIds,
-  onNewSession,
-  onStartEditingSession,
-  onCancelEditingSession,
-  onSaveEditingSession,
-  selectedSessionIds,
-  onSetSessionSelection,
-  onToggleSessionSelected,
-  onCancelSessionSelection,
-  onDeleteSelectedSessions,
+  onFileOpen,
   t,
 }: SidebarProjectItemProps) {
   // Project identity is tracked by the DB-assigned `projectId` everywhere
@@ -448,37 +429,14 @@ function SidebarProjectItem({
         )}
       </div>
 
-      <SidebarProjectSessions
-        project={project}
-        isExpanded={isExpanded}
-        sessions={sessions}
-        selectedSession={selectedSession}
-        initialSessionsLoaded={initialSessionsLoaded}
-        hasMoreSessions={Boolean(project.sessionMeta?.hasMore)}
-        isLoadingMoreSessions={isLoadingMoreSessions}
-        activeSessions={activeSessions}
-        backgroundSessionIds={backgroundSessionIds}
-        attentionSessionIds={attentionSessionIds}
-        currentTime={currentTime}
-        sessionRenameId={sessionRenameId}
-        sessionRenameDraft={sessionRenameDraft}
-        onRenameDraftChange={onRenameDraftChange}
-        onStartEditingSession={onStartEditingSession}
-        onCancelEditingSession={onCancelEditingSession}
-        onSaveEditingSession={onSaveEditingSession}
-        onProjectSelect={onProjectSelect}
-        onSessionSelect={onSessionSelect}
-        onDeleteSession={onDeleteSession}
-        onForkSession={onForkSession}
-        onLoadMoreSessions={onLoadMoreSessions}
-        onNewSession={onNewSession}
-        selectedSessionIds={selectedSessionIds}
-        onSetSessionSelection={onSetSessionSelection}
-        onToggleSessionSelected={onToggleSessionSelected}
-        onCancelSessionSelection={onCancelSessionSelection}
-        onDeleteSelectedSessions={onDeleteSelectedSessions}
-        t={t}
-      />
+      {isExpanded && (
+        <div className="ml-3 border-l border-border pl-3 pr-1">
+          <FileTreeInline
+            project={project}
+            onFileOpen={(filePath) => onFileOpen?.(project, filePath)}
+          />
+        </div>
+      )}
     </div>
   );
 }

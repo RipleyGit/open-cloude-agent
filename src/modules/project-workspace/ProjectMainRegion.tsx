@@ -23,6 +23,8 @@ function ProjectMainRegion({
     newSessionTrigger,
     registerOptimisticSession,
     handleProjectSelect,
+    pendingFileOpen,
+    clearPendingFileOpen,
     refreshProjectsSilently,
     renameSession,
   } = useProjectMainState();
@@ -66,6 +68,8 @@ function ProjectMainRegion({
       externalMessageUpdate={externalMessageUpdate}
       newSessionTrigger={newSessionTrigger}
       onProjectSelect={handleProjectSelect}
+      pendingFileOpen={pendingFileOpen}
+      clearPendingFileOpen={clearPendingFileOpen}
       onProjectsRefresh={handleProjectsRefresh}
       onRenameSession={renameSession}
     />

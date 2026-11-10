@@ -25,6 +25,8 @@ type ProjectMainState = Pick<
   | 'newSessionTrigger'
   | 'registerOptimisticSession'
   | 'handleProjectSelect'
+  | 'pendingFileOpen'
+  | 'clearPendingFileOpen'
   | 'refreshProjectsSilently'
   | 'renameSession'
 >;
@@ -97,16 +99,20 @@ export function ProjectsStateProvider({
       newSessionTrigger: state.newSessionTrigger,
       registerOptimisticSession: state.registerOptimisticSession,
       handleProjectSelect: state.handleProjectSelect,
+      pendingFileOpen: state.pendingFileOpen,
+      clearPendingFileOpen: state.clearPendingFileOpen,
       refreshProjectsSilently: state.refreshProjectsSilently,
       renameSession: state.renameSession,
     }),
     [
       state.activeTab,
+      state.clearPendingFileOpen,
       state.externalMessageUpdate,
       state.handleProjectSelect,
       state.isLoadingProjects,
       state.newSessionTrigger,
       state.openSettings,
+      state.pendingFileOpen,
       state.refreshProjectsSilently,
       state.registerOptimisticSession,
       state.renameSession,

@@ -980,6 +980,24 @@ export type FileTreeImageSelection = {
 /** Whether a file tree entry is a file or a directory; use it instead of repeating the string union wherever `FileTreeNode`-shaped data is handled. */
 type FileTreeItemType = 'file' | 'directory';
 
+/** A transient success or error banner shown after a file-tree operation; the tree renders it for a few seconds and then clears it. */
+export type ToastMessage = {
+  message: string;
+  type: 'success' | 'error';
+};
+
+/** The pending delete request behind the file tree's confirmation dialog; `item` is null when no delete is being confirmed. */
+export type DeleteConfirmation = {
+  isOpen: boolean;
+  item: FileTreeNode | null;
+};
+
+/** A file the sidebar asked the workspace to open, held until its project becomes the selected one so the editor never opens it against the previous project. */
+export type PendingFileOpen = {
+  projectId: string;
+  path: string;
+};
+
 // ---------------------------
 
 //----------------- GIT PANEL ------------
@@ -1639,6 +1657,8 @@ export type SidebarProjectListProps = SessionRowActions & {
   onCancelSessionSelection: () => void;
   /** Opens the bulk delete confirmation for the ids the list resolved as still deletable. */
   onDeleteSelectedSessions: (sessionIds: string[]) => void;
+  /** Opens a file picked in an expanded project's inline tree; the workspace switches project first. */
+  onFileOpen?: (project: Project, filePath: string) => void;
   t: TFunction;
 };
 

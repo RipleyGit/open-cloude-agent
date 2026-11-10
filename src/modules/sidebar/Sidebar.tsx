@@ -19,6 +19,8 @@ type SidebarProps = {
   selectedSession: ProjectSession | null;
   attentionSessionIds: ReadonlySet<string>;
   onProjectSelect: (project: Project) => void;
+  /** Opens a file from an expanded project's inline tree; the owner switches project and then opens it. */
+  onFileOpen?: (project: Project, filePath: string) => void;
   onSessionSelect: (session: ProjectSession) => void;
   onNewSession: (project: Project) => void;
   onSessionDelete?: (sessionId: string) => void;
@@ -49,6 +51,7 @@ function Sidebar({
   selectedSession,
   attentionSessionIds,
   onProjectSelect,
+  onFileOpen,
   onSessionSelect,
   onNewSession,
   onSessionDelete,
@@ -236,6 +239,7 @@ function Sidebar({
     onToggleSessionSelected: toggleSessionSelected,
     onCancelSessionSelection: cancelSessionSelection,
     onDeleteSelectedSessions: showDeleteSelectedSessionsConfirmation,
+    onFileOpen,
     t,
   };
 

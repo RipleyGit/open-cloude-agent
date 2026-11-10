@@ -8,7 +8,9 @@ import type { ServerEvent,
   LLMProvider,
   LoadingProgress,
   Project,
-  ProjectSession,IsSessionProcessing } from '@/shared/types';
+  ProjectSession,
+  PendingFileOpen,
+  IsSessionProcessing } from '@/shared/types';
 import { mergeProjectSelectionMetadata } from '@/modules/project-workspace/utils/projectSelectionMetadata';
 import {
   persistActiveProjectAndSession,
@@ -394,6 +396,10 @@ export function useProjectsState({
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedSession, setSelectedSession] = useState<ProjectSession | null>(null);
+  // A file picked in the sidebar before its project became selected; the
+  // workspace consumes it once that project is active, so the editor never
+  // opens the path against the previously selected project.
+  const [pendingFileOpen, setPendingFileOpen] = useState<PendingFileOpen | null>(null);
   const [attentionSessionIds, setAttentionSessionIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<AppTab>(readPersistedTab);
 
@@ -1079,6 +1085,22 @@ export function useProjectsState({
     [isMobile, navigate],
   );
 
+  // Switching project resets the session, but picking a file in the project the
+  // user is already in must keep their chat context; only the drawer closes.
+  const requestFileOpen = useCallback(
+    (project: Project, filePath: string) => {
+      if (selectedProject?.projectId !== project.projectId) {
+        handleProjectSelect(project);
+      } else if (isMobile) {
+        setSidebarOpen(false);
+      }
+      setPendingFileOpen({ projectId: project.projectId, path: filePath });
+    },
+    [handleProjectSelect, isMobile, selectedProject?.projectId],
+  );
+
+  const clearPendingFileOpen = useCallback(() => setPendingFileOpen(null), []);
+
   const handleSessionSelect = useCallback(
     (session: ProjectSession) => {
       clearSessionAttention(session.id);
@@ -1302,6 +1324,7 @@ export function useProjectsState({
       selectedSession,
       attentionSessionIds,
       onProjectSelect: handleProjectSelect,
+      onFileOpen: requestFileOpen,
       onSessionSelect: handleSessionSelect,
       onNewSession: handleNewSession,
       onSessionDelete: handleSessionDelete,
@@ -1330,6 +1353,7 @@ export function useProjectsState({
       isMobile,
       loadingProgress,
       projects,
+      requestFileOpen,
       settingsInitialTab,
       settingsInitialAgent,
       selectedProject,
@@ -1359,6 +1383,8 @@ export function useProjectsState({
     refreshProjectsSilently,
     registerOptimisticSession,
     sidebarSharedProps,
+    pendingFileOpen,
+    clearPendingFileOpen,
     handleProjectSelect,
     handleSessionSelect,
     handleNewSession,

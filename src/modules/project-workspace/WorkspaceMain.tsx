@@ -8,7 +8,7 @@ import { PluginTabContent } from '@/modules/plugins';
 import { BrowserUsePanel, useBrowserUseEnabled } from '@/modules/browser-use';
 import { usePaletteOpsRegister } from '@/modules/command-palette';
 import { TaskMasterPanel, useTaskMasterProjectSync, useTasksSettings } from '@/modules/task-master';
-import type { AgentProvider, AppTab, DirectoryRevealRequest, Project, ProjectSession, SessionEstablishedContext, SessionNavigationOptions, SettingsMainTab } from '@/shared/types';
+import type { AgentProvider, AppTab, DirectoryRevealRequest, PendingFileOpen, Project, ProjectSession, SessionEstablishedContext, SessionNavigationOptions, SettingsMainTab } from '@/shared/types';
 import { useUiPreferences } from '@/shared/context/UiPreferencesContext';
 import { useFileOpenResolver } from '@/modules/project-workspace/hooks/useFileOpenResolver';
 import { EditorSidebar, useEditorSidebar } from '@/modules/code-editor';
@@ -36,6 +36,10 @@ type WorkspaceMainProps = {
   onProjectSelect: (project: Project) => void;
   /** Silently re-syncs the sidebar project list after worktree projects change. */
   onProjectsRefresh: () => void;
+  /** A file the sidebar asked to open while switching project; consumed once the project is active. */
+  pendingFileOpen: PendingFileOpen | null;
+  /** Clears the consumed pending file open request. */
+  clearPendingFileOpen: () => void;
   /** Persists a new title for a session; resolves false when the backend refuses it. Used by the header's inline rename. */
   onRenameSession: (sessionId: string, summary: string) => Promise<boolean>;
 };
@@ -58,6 +62,8 @@ function WorkspaceMain({
   newSessionTrigger,
   onProjectSelect,
   onProjectsRefresh,
+  pendingFileOpen,
+  clearPendingFileOpen,
   onRenameSession,
 }: WorkspaceMainProps) {
   const preferences = useUiPreferences();
@@ -134,6 +140,19 @@ function WorkspaceMain({
     setRevealDirectory({ path: directoryPath });
   }, [setActiveTab]);
 
+  // A sidebar file pick can arrive before the project it belongs to is the
+  // selected one; handleFileOpen closes over selectedProject, so it is held
+  // until that project is active and then opened against the right project.
+  useEffect(() => {
+    if (!pendingFileOpen || pendingFileOpen.projectId !== selectedProject?.projectId) {
+      return;
+    }
+    if (handleFileOpen(pendingFileOpen.path)) {
+      setActiveTab('files');
+    }
+    clearPendingFileOpen();
+  }, [pendingFileOpen, selectedProject?.projectId, handleFileOpen, setActiveTab, clearPendingFileOpen]);
+
   // Stable arguments keep usePaletteOpsRegister's effect from tearing down and
   // rewriting the whole palette registry on every render.
   usePaletteOpsRegister({ openFile, openFileInEditor, openDirectory });
@@ -161,10 +180,9 @@ function WorkspaceMain({
         onShowSettings={onShowSettings}
       />
 
-      {/* Below the header: the sessions drawer is portaled here so it stays
-          confined to the content area rather than covering the tab bar. */}
+      {/* Below the header: the tab content. The sessions drawer is not docked
+          here — the workspace shell renders it over the whole window instead. */}
       <div
-        id="workspace-content-region"
         className="relative flex min-h-0 flex-1 overflow-hidden"
       >
         <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden sm:min-w-[200px] ${editorExpanded ? 'hidden' : ''} flex-1`}>
