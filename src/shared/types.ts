@@ -158,7 +158,7 @@ export type ReleaseInfo = {
   publishedAt: string;
 };
 
-/** How this CloudCLI install was obtained; decides whether the UI offers a self-update action. */
+/** How this Cloude Agent install was obtained; decides whether the UI offers a self-update action. */
 export type InstallMode = 'git' | 'npm';
 
 // ---------------------------
@@ -1252,7 +1252,7 @@ type McpImportMode = 'form' | 'json';
 
 //----------------- PLUGINS ------------
 
-/** An installed CloudCLI plugin's manifest and runtime status (entry point, slot, permissions, enabled and server-running flags); always import this type explicitly from `@/shared/types`, because `Plugin` is also a DOM global and an unimported reference silently resolves to that instead. */
+/** An installed Cloude Agent plugin's manifest and runtime status (entry point, slot, permissions, enabled and server-running flags); always import this type explicitly from `@/shared/types`, because `Plugin` is also a DOM global and an unimported reference silently resolves to that instead. */
 export type Plugin = {
   name: string;
   displayName: string;
@@ -1425,7 +1425,7 @@ export type ProviderAuthStatusMap = Record<LLMProvider, ProviderAuthStatus>;
 
 //----------------- PROVIDER CLI VERSION ------------
 
-/** One provider CLI's version state from `GET /api/providers/:provider/cli`: the installed version, the newest npm release (null when the CLI is not on npm or the registry did not answer), the command the update action runs, or why there is none ('bundled': it ships with CloudCLI; 'platform': the hosting platform manages it), whether an update run is going on, and the most recent finished run since the server started. A page that sees `updateInProgress` polls until it turns false and then shows `lastUpdate` as that run's result. Loaded by useProviderCliVersion and rendered by the settings account view. */
+/** One provider CLI's version state from `GET /api/providers/:provider/cli`: the installed version, the newest npm release (null when the CLI is not on npm or the registry did not answer), the command the update action runs, or why there is none ('bundled': it ships with Cloude Agent; 'platform': the hosting platform manages it), whether an update run is going on, and the most recent finished run since the server started. A page that sees `updateInProgress` polls until it turns false and then shows `lastUpdate` as that run's result. Loaded by useProviderCliVersion and rendered by the settings account view. */
 export type ProviderCliStatus = {
   provider: LLMProvider;
   installed: boolean;
@@ -1553,7 +1553,7 @@ export type CodeEditorSettingsState = {
 
 //----------------- SETTINGS CREDENTIALS ------------
 
-/** One stored CloudCLI API key as the server returns it, in snake_case, including its masked key, creation and last-used timestamps and active flag; render it, do not rebuild it. */
+/** One stored Cloude Agent API key as the server returns it, in snake_case, including its masked key, creation and last-used timestamps and active flag; render it, do not rebuild it. */
 export type ApiKeyItem = {
   id: string;
   key_name: string;

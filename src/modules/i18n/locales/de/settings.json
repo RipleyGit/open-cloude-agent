@@ -361,7 +361,7 @@
       "versionUnavailable": "Version konnte nicht gelesen werden",
       "updateAvailable": "Update verfügbar: v{{version}}",
       "upToDate": "Aktuell",
-      "bundled": "Wird mit CloudCLI ausgeliefert und zusammen damit aktualisiert.",
+      "bundled": "Wird mit Cloude Agent ausgeliefert und zusammen damit aktualisiert.",
       "platform": "Wird von der Hosting-Plattform verwaltet.",
       "updateTo": "Auf v{{version}} aktualisieren",
       "runUpdater": "Updater ausführen",

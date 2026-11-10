@@ -11,7 +11,7 @@ export { providerModelsService } from './services/provider-models.service.js';
 export { sessionsService } from './services/sessions.service.js';
 
 // reapOrphanedOpenCodeServers: used by the server entrypoint at startup to stop
-// OpenCode turn servers a killed CloudCLI process left running.
+// OpenCode turn servers a killed Cloude Agent process left running.
 export { reapOrphanedOpenCodeServers } from './list/opencode/opencode-runtime.provider.js';
 
 export { initializeSessionsWatcher } from './services/sessions-watcher.service.js';

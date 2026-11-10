@@ -380,7 +380,7 @@
       "versionUnavailable": "Verzi se nepodařilo zjistit",
       "updateAvailable": "K dispozici je aktualizace: v{{version}}",
       "upToDate": "Aktuální",
-      "bundled": "Dodává se s CloudCLI a aktualizuje se spolu s ním.",
+      "bundled": "Dodává se s Cloude Agent a aktualizuje se spolu s ním.",
       "platform": "Spravováno hostingovou platformou.",
       "updateTo": "Aktualizovat na v{{version}}",
       "runUpdater": "Spustit aktualizaci",
@@ -546,7 +546,7 @@
     },
     "managed": {
       "badge": "Spravováno",
-      "hint": "Spravuje CloudCLI."
+      "hint": "Spravuje Cloude Agent."
     },
     "help": {
       "title": "O MCP pro Codex",
@@ -578,7 +578,7 @@
     "docs": "Dokumentace",
     "sections": {
       "officialTitle": "Oficiální pluginy",
-      "officialDescription": "Spravuje je tým CloudCLI a jsou připravené k přímé instalaci.",
+      "officialDescription": "Spravuje je tým Cloude Agent a jsou připravené k přímé instalaci.",
       "unofficialTitle": "Další pluginy",
       "unofficialDescription": "Neoficiální pluginy a integrace od jiných uživatelů. Před instalací zkontrolujte zdrojový kód."
     },
@@ -603,7 +603,7 @@
     "prismCloudCLI": {
       "name": "PRISM CloudCLI",
       "badge": "neoficiální",
-      "description": "Analýza relací Claude Code přímo v CloudCLI. Zjistěte, proč vaše relace spalují tokeny, aniž byste opustili prohlížeč.",
+      "description": "Analýza relací Claude Code přímo v Cloude Agent. Zjistěte, proč vaše relace spalují tokeny, aniž byste opustili prohlížeč.",
       "install": "Instalovat"
     },
     "sessionManagerPlugin": {

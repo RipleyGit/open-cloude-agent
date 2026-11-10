@@ -65,7 +65,7 @@ async function extractAgyTranscriptMetadata(
 
 /**
  * Session indexing adapter for Antigravity CLI (`agy`).
- * Used by AgyProvider to scan ~/.gemini/antigravity-cli/brain and index sessions into CloudCLI SQLite.
+ * Used by AgyProvider to scan ~/.gemini/antigravity-cli/brain and index sessions into Cloude Agent SQLite.
  */
 export class AgySessionSynchronizer implements IProviderSessionSynchronizer {
   private readonly appDataDir = path.join(os.homedir(), '.gemini', 'antigravity-cli');

@@ -361,7 +361,7 @@
       "versionUnavailable": "バージョンを取得できませんでした",
       "updateAvailable": "アップデートあり: v{{version}}",
       "upToDate": "最新です",
-      "bundled": "CloudCLI に同梱されており、CloudCLI と一緒に更新されます。",
+      "bundled": "Cloude Agent に同梱されており、Cloude Agent と一緒に更新されます。",
       "platform": "ホスティングプラットフォームが管理しています。",
       "updateTo": "v{{version}} に更新",
       "runUpdater": "アップデーターを実行",

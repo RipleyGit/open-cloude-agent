@@ -1,7 +1,7 @@
 {
   "name": "@cloudcli-ai/cloudcli",
   "version": "1.37.7",
-  "productName": "CloudCLI",
+  "productName": "Cloude Agent",
   "description": "A web-based UI for Claude Code CLI",
   "type": "module",
   "main": "dist-server/server/index.js",
@@ -63,7 +63,7 @@
   },
   "build": {
     "appId": "ai.cloudcli.desktop",
-    "productName": "CloudCLI",
+    "productName": "Cloude Agent",
     "asar": false,
     "artifactName": "cloudcli-desktop-${version}-${os}-${arch}.${ext}",
     "directories": {
@@ -84,7 +84,7 @@
     ],
     "protocols": [
       {
-        "name": "CloudCLI",
+        "name": "Cloude Agent",
         "schemes": [
           "cloudcli"
         ]
@@ -98,11 +98,11 @@
         "dmg"
       ],
       "extendInfo": {
-        "CFBundleName": "CloudCLI",
-        "CFBundleDisplayName": "CloudCLI",
+        "CFBundleName": "Cloude Agent",
+        "CFBundleDisplayName": "Cloude Agent",
         "CFBundleURLTypes": [
           {
-            "CFBundleURLName": "CloudCLI",
+            "CFBundleURLName": "Cloude Agent",
             "CFBundleURLSchemes": [
               "cloudcli"
             ]
@@ -137,7 +137,7 @@
     "ui",
     "mobile IDE"
   ],
-  "author": "CloudCLI UI Contributors",
+  "author": "Cloude Agent UI Contributors",
   "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.165",

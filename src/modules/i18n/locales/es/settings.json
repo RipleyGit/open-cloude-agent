@@ -408,7 +408,7 @@
       "versionUnavailable": "No se pudo leer la versión",
       "updateAvailable": "Actualización disponible: v{{version}}",
       "upToDate": "Actualizada",
-      "bundled": "Se incluye con CloudCLI y se actualiza junto con él.",
+      "bundled": "Se incluye con Cloude Agent y se actualiza junto con él.",
       "platform": "La gestiona la plataforma de alojamiento.",
       "updateTo": "Actualizar a v{{version}}",
       "runUpdater": "Ejecutar actualizador",
@@ -581,7 +581,7 @@
     },
     "managed": {
       "badge": "Gestionado",
-      "hint": "Gestionado por CloudCLI."
+      "hint": "Gestionado por Cloude Agent."
     },
     "help": {
       "title": "Acerca de MCP en Codex",
@@ -613,7 +613,7 @@
     "docs": "Docs",
     "sections": {
       "officialTitle": "Plugins oficiales",
-      "officialDescription": "Mantenidos por el equipo de CloudCLI y listos para instalar directamente.",
+      "officialDescription": "Mantenidos por el equipo de Cloude Agent y listos para instalar directamente.",
       "unofficialTitle": "Otros plugins",
       "unofficialDescription": "Plugins e integraciones no oficiales de otros usuarios. Revisa el código fuente antes de instalar."
     },
@@ -638,7 +638,7 @@
     "prismCloudCLI": {
       "name": "PRISM CloudCLI",
       "badge": "no oficial",
-      "description": "Inteligencia de sesiones para Claude Code, dentro de CloudCLI. Descubre por qué tus sesiones queman tokens sin salir del navegador.",
+      "description": "Inteligencia de sesiones para Claude Code, dentro de Cloude Agent. Descubre por qué tus sesiones queman tokens sin salir del navegador.",
       "install": "Instalar"
     },
     "sessionManagerPlugin": {

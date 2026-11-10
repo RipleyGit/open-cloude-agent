@@ -1,5 +1,5 @@
 <div align="center">
- <img src="public/logo.svg" alt="CloudCLI UI" width="64" height="64">
+ <img src="public/logo.svg" alt="Cloude Agent UI" width="64" height="64">
  <h1>Cloud CLI (aka Claude Code UI)</h1>
  <p>A desktop and mobile UI for <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>, <a href="https://docs.cursor.com/en/cli/overview">Cursor CLI</a>, and <a href="https://developers.openai.com/codex">Codex</a>.<br>Use it locally or remotely to view your active projects and sessions from everywhere.</p>
 </div>
@@ -61,7 +61,7 @@
 - **Git Explorer** - View, stage and commit your changes. You can also switch branches 
 - **Browser Use** - Open browser sessions for web research, testing, and agent-driven browser tasks
 - **Session Management** - Resume conversations, manage multiple sessions, and track history
-- **Plugin System** - Extend CloudCLI with custom plugins — add new tabs, backend services, and integrations. [Build your own →](https://github.com/cloudcli-ai/cloudcli-plugin-starter)
+- **Plugin System** - Extend Cloude Agent with custom plugins — add new tabs, backend services, and integrations. [Build your own →](https://github.com/cloudcli-ai/cloudcli-plugin-starter)
 - **TaskMaster AI Integration** *(Optional)* - Advanced project management with AI-powered task planning, PRD parsing, and workflow automation
 - **Model Compatibility** - Works with Claude and GPT model families (the full list of supported models is available at runtime via `GET /api/providers/:provider/models`)
 
@@ -78,7 +78,7 @@ The fastest way to get started — no local setup required. Get a fully managed,
 
 #### npm
 
-Try CloudCLI UI instantly with **npx** (requires **Node.js** v22+):
+Try Cloude Agent UI instantly with **npx** (requires **Node.js** v22+):
 
 ```
 npx @cloudcli-ai/cloudcli
@@ -154,20 +154,20 @@ Supports Claude Code and Codex. See the [sandbox docs](docker/) for setup and ad
 
 ### Desktop Companion App
 
-CloudCLI Desktop is an optional native companion for CloudCLI Cloud and Local CloudCLI. It ships from this repository's GitHub Releases and keeps CloudCLI available from your menu bar or tray.
+Cloude Agent Desktop is an optional native companion for CloudCLI Cloud and Local Cloude Agent. It ships from this repository's GitHub Releases and keeps Cloude Agent available from your menu bar or tray.
 
 - **[macOS](https://cloudcli.ai/download/macos)**
 - **[Windows](https://cloudcli.ai/download/windows)**
 - **[Download page](https://cloudcli.ai/download)** · **[GitHub Releases and checksums](https://github.com/siteboon/claudecodeui/releases)**
 
-Use it to open CloudCLI Cloud environments, switch between local and remote workspaces, and copy mobile/browser URLs. To work locally, choose **Local CloudCLI** in the desktop app; it will use your running local server or start one for you.
+Use it to open CloudCLI Cloud environments, switch between local and remote workspaces, and copy mobile/browser URLs. To work locally, choose **Local Cloude Agent** in the desktop app; it will use your running local server or start one for you.
 
 
 ---
 
 ## Which option is right for you?
 
-CloudCLI UI is the open source UI layer that powers CloudCLI Cloud. You can self-host it on your own machine, run it in a Docker sandbox for isolation, or use CloudCLI Cloud for a fully managed environment.
+Cloude Agent UI is the open source UI layer that powers CloudCLI Cloud. You can self-host it on your own machine, run it in a Docker sandbox for isolation, or use CloudCLI Cloud for a fully managed environment.
 
 | | Self-Hosted (npm) | Self-Hosted (Docker Sandbox) *(Experimental)* | CloudCLI Cloud |
 |---|---|---|---|
@@ -177,7 +177,7 @@ CloudCLI UI is the open source UI layer that powers CloudCLI Cloud. You can self
 | **Isolation** | Runs on your host | Hypervisor-level sandbox (microVM) | Full cloud isolation |
 | **Machine needs to stay on** | Yes | Yes | No |
 | **Mobile access** | Any browser on your network | Any browser on your network | Any device |
-| **Desktop companion** | Optional. Choose Local CloudCLI | Optional. Choose Local CloudCLI | Optional. Opens cloud environments |
+| **Desktop companion** | Optional. Choose Local Cloude Agent | Optional. Choose Local Cloude Agent | Optional. Opens cloud environments |
 | **Agents supported** | Claude Code, Cursor CLI, Codex | Claude Code, Codex | Claude Code, Cursor CLI, Codex |
 | **File explorer and Git** | Yes | Yes | Yes |
 | **MCP configuration** | Synced with `~/.claude` | Managed via UI | Managed via UI |
@@ -185,7 +185,7 @@ CloudCLI UI is the open source UI layer that powers CloudCLI Cloud. You can self
 | **Team sharing** | No | No | Yes |
 | **Platform cost** | Free, open source | Free, open source | Starts at €7/month |
 
-> All options use your own AI subscriptions (Claude, Cursor, etc.) — CloudCLI provides the environment, not the AI.
+> All options use your own AI subscriptions (Claude, Cursor, etc.) — Cloude Agent provides the environment, not the AI.
 
 ---
 
@@ -214,7 +214,7 @@ To use Claude Code's full functionality, you'll need to manually enable tools:
 
 ## Plugins
 
-CloudCLI has a plugin system that lets you add custom tabs with their own frontend UI and optional Node.js backend. Install plugins from git repos directly in **Settings > Plugins**, or build your own.
+Cloude Agent has a plugin system that lets you add custom tabs with their own frontend UI and optional Node.js backend. Install plugins from git repos directly in **Settings > Plugins**, or build your own.
 
 ### Available Plugins
 
@@ -223,7 +223,7 @@ CloudCLI has a plugin system that lets you add custom tabs with their own fronte
 | **[Project Stats](https://github.com/cloudcli-ai/cloudcli-plugin-starter)** | Shows file counts, lines of code, file-type breakdown, largest files, and recently modified files for your current project |
 | **[Web Terminal](https://github.com/cloudcli-ai/cloudcli-plugin-terminal)** | Full xterm.js terminal with multi-tab support |
 | **[CloudCLI Scheduler](https://github.com/grostim/cloudcli-cron)** | Create workspace-scoped scheduled prompts and execute them through a local CLI such as Codex or Claude Code |
-| **[PRISM CloudCLI](https://github.com/jakeefr/cloudcli-plugin-prism)** | Session intelligence for Claude Code inside CloudCLI, including token burn visibility |
+| **[PRISM CloudCLI](https://github.com/jakeefr/cloudcli-plugin-prism)** | Session intelligence for Claude Code inside Cloude Agent, including token burn visibility |
 | **[Sessions](https://github.com/strykereye2/cloudcli-plugin-session-manager)** | View, manage, and kill active Claude Code sessions |
 | **[Token Cost Calculator](https://github.com/NightmareAway/cloudcli-plugin-token-cost-calculator)** | Calculate API costs from model prices and token usage, with preset model pricing support |
 | **[Task Queue](https://github.com/TadMSTR/cloudcli-plugin-task-queue)** | Task queue dashboard to view, filter, and launch agent tasks |
@@ -252,12 +252,12 @@ Without credentials, an `https://` install fails with a message saying that the 
 
 Claude Code Remote Control lets you send messages to a session already running in your local terminal. Your machine has to stay on, your terminal has to stay open, and sessions time out after roughly 10 minutes without a network connection.
 
-CloudCLI UI and CloudCLI Cloud extend Claude Code rather than sit alongside it — your MCP servers, permissions, settings, and sessions are the exact same ones Claude Code uses natively. Nothing is duplicated or managed separately.
+Cloude Agent UI and CloudCLI Cloud extend Claude Code rather than sit alongside it — your MCP servers, permissions, settings, and sessions are the exact same ones Claude Code uses natively. Nothing is duplicated or managed separately.
 
 Here's what that means in practice:
 
-- **All your sessions, not just one** — CloudCLI UI auto-discovers every session from your `~/.claude` folder. Remote Control only exposes the single active session to make it available in the Claude mobile app.
-- **Your settings are your settings** — MCP servers, tool permissions, and project config you change in CloudCLI UI are written directly to your Claude Code config and take effect immediately, and vice versa.
+- **All your sessions, not just one** — Cloude Agent UI auto-discovers every session from your `~/.claude` folder. Remote Control only exposes the single active session to make it available in the Claude mobile app.
+- **Your settings are your settings** — MCP servers, tool permissions, and project config you change in Cloude Agent UI are written directly to your Claude Code config and take effect immediately, and vice versa.
 - **Works with more agents** — Claude Code, Cursor CLI and Codex, not just Claude Code.
 - **Full UI, not just a chat window** — file explorer, Git integration, MCP management, and a shell terminal are all built in.
 - **CloudCLI Cloud runs in the cloud** — close your laptop, the agent keeps running. No terminal to babysit, no machine to keep awake.
@@ -267,12 +267,12 @@ Here's what that means in practice:
 <details>
 <summary>Do I need to pay for an AI subscription separately?</summary>
 
-Yes. CloudCLI provides the environment, not the AI. You bring your own Claude, Cursor, or Codex subscription. CloudCLI Cloud starts at €7/month for the hosted environment on top of that.
+Yes. Cloude Agent provides the environment, not the AI. You bring your own Claude, Cursor, or Codex subscription. CloudCLI Cloud starts at €7/month for the hosted environment on top of that.
 
 </details>
 
 <details>
-<summary>Can I use CloudCLI UI on my phone?</summary>
+<summary>Can I use Cloude Agent UI on my phone?</summary>
 
 Yes. For self-hosted, run the server on your machine and open `[yourip]:port` in any browser on your network. For CloudCLI Cloud, open it from any device — no VPN, no port forwarding, no setup. A native app is also in the works.
 
@@ -281,7 +281,7 @@ Yes. For self-hosted, run the server on your machine and open `[yourip]:port` in
 <details>
 <summary>Will changes I make in the UI affect my local Claude Code setup?</summary>
 
-Yes, for self-hosted. CloudCLI UI reads from and writes to the same `~/.claude` config that Claude Code uses natively. MCP servers you add via the UI show up in Claude Code immediately and vice versa.
+Yes, for self-hosted. Cloude Agent UI reads from and writes to the same `~/.claude` config that Claude Code uses natively. MCP servers you add via the UI show up in Claude Code immediately and vice versa.
 
 </details>
 
@@ -300,7 +300,7 @@ GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later) — see [LIC
 
 This project is open source and free to use, modify, and distribute under the AGPL-3.0-or-later license. If you modify this software and run it as a network service, you must make your modified source code available to users of that service.
 
-CloudCLI UI - (https://cloudcli.ai).
+Cloude Agent UI - (https://cloudcli.ai).
 
 ## Acknowledgments
 

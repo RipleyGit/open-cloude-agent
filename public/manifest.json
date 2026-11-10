@@ -1,7 +1,7 @@
 {
-  "name": "CloudCLI UI",
-  "short_name": "CloudCLI UI",
-  "description": "CloudCLI UI web application",
+  "name": "Cloude Agent UI",
+  "short_name": "Cloude Agent UI",
+  "description": "Cloude Agent UI web application",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

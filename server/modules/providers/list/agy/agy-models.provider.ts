@@ -2,7 +2,7 @@ import type { IProviderModels } from '@/shared/interfaces.js';
 import type { ProviderCurrentActiveModel, ProviderModelsDefinition } from '@/shared/types.js';
 import { buildDefaultProviderCurrentActiveModel } from '@/shared/utils.js';
 
-/** Curated Antigravity catalog shipped as CloudCLI defaults. */
+/** Curated Antigravity catalog shipped as Cloude Agent defaults. */
 export const AGY_PREDEFINED_MODELS: ProviderModelsDefinition = {
   OPTIONS: [
     {

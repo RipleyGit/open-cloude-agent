@@ -1,5 +1,5 @@
 <div align="center">
- <img src="../public/logo.svg" alt="CloudCLI UI" width="64" height="64">
+ <img src="../public/logo.svg" alt="Cloude Agent UI" width="64" height="64">
  <h1>Cloud CLI（別名 Claude Code UI）</h1>
  <p><a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>、<a href="https://docs.cursor.com/en/cli/overview">Cursor CLI</a>、<a href="https://developers.openai.com/codex">Codex</a> のためのデスクトップ／モバイル UI。<br>ローカルでもリモートでも使え、アクティブなプロジェクトとセッションをどこからでも閲覧できます。</p>
 </div>
@@ -60,7 +60,7 @@
 - **ファイルエクスプローラー** - シンタックスハイライトとライブ編集に対応したインタラクティブなファイルツリー
 - **Git エクスプローラー** - 変更の表示、ステージ、コミット。ブランチ切り替えも可能
 - **セッション管理** - 会話の再開、複数セッションの管理、履歴の追跡
-- **プラグインシステム** - カスタムプラグインで CloudCLI を拡張 — 新しいタブ、バックエンドサービス、連携を追加できます。[自分で構築する →](https://github.com/cloudcli-ai/cloudcli-plugin-starter)
+- **プラグインシステム** - カスタムプラグインで Cloude Agent を拡張 — 新しいタブ、バックエンドサービス、連携を追加できます。[自分で構築する →](https://github.com/cloudcli-ai/cloudcli-plugin-starter)
 
 ## クイックスタート
 
@@ -74,7 +74,7 @@
 
 #### npm
 
-**npx** で今すぐ CloudCLI UI を試せます（**Node.js** v22+ が必要）：
+**npx** で今すぐ Cloude Agent UI を試せます（**Node.js** v22+ が必要）：
 
 ```bash
 npx @cloudcli-ai/cloudcli
@@ -105,9 +105,9 @@ Claude Code、Codex に対応。詳細は[サンドボックスのドキュメ�
 
 ## どちらの選択肢が適していますか？
 
-CloudCLI UI は、CloudCLI Cloud を支えるオープンソースの UI レイヤーです。自分のマシンにセルフホストすることも、フルマネージドのクラウド環境、チーム機能、より深い統合を備えた CloudCLI Cloud を使うこともできます。
+Cloude Agent UI は、CloudCLI Cloud を支えるオープンソースの UI レイヤーです。自分のマシンにセルフホストすることも、フルマネージドのクラウド環境、チーム機能、より深い統合を備えた CloudCLI Cloud を使うこともできます。
 
-| | CloudCLI UI（セルフホスト） | CloudCLI Cloud |
+| | Cloude Agent UI（セルフホスト） | CloudCLI Cloud |
 |---|---|---|
 | **対象ユーザー** | 自分のマシン上でローカルの agent セッションに対してフル UI を使いたい開発者 | クラウド上で動く agents をどこからでも利用したいチーム／開発者 |
 | **アクセス方法** | ブラウザ（`[yourip]:port`） | ブラウザ、任意の IDE、REST API、n8n |
@@ -124,7 +124,7 @@ CloudCLI UI は、CloudCLI Cloud を支えるオープンソースの UI レイ�
 | **チーム共有** | いいえ | はい |
 | **料金プラン** | 無料（オープンソース） | 月 €7〜 |
 
-> どちらの選択肢でも、AI のサブスクリプション（Claude、Cursor など）はご自身のものを使用します — CloudCLI が提供するのは環境であり、AI そのものではありません。
+> どちらの選択肢でも、AI のサブスクリプション（Claude、Cursor など）はご自身のものを使用します — Cloude Agent が提供するのは環境であり、AI そのものではありません。
 
 ---
 
@@ -151,7 +151,7 @@ CloudCLI UI は、CloudCLI Cloud を支えるオープンソースの UI レイ�
 
 ## プラグイン
 
-CloudCLI にはプラグインシステムがあり、独自のフロントエンド UI と（必要に応じて）Node.js バックエンドを持つカスタムタブを追加できます。プラグインは **Settings > Plugins** から git リポジトリを直接指定してインストールするか、自作できます。
+Cloude Agent にはプラグインシステムがあり、独自のフロントエンド UI と（必要に応じて）Node.js バックエンドを持つカスタムタブを追加できます。プラグインは **Settings > Plugins** から git リポジトリを直接指定してインストールするか、自作できます。
 
 ### 利用可能なプラグイン
 
@@ -160,7 +160,7 @@ CloudCLI にはプラグインシステムがあり、独自のフロントエ�
 | **[Project Stats](https://github.com/cloudcli-ai/cloudcli-plugin-starter)** | 現在のプロジェクトについて、ファイル数、コード行数、ファイル種別の内訳、最大ファイル、最近変更されたファイルを表示 |
 | **[Web Terminal](https://github.com/cloudcli-ai/cloudcli-plugin-terminal)** | 複数タブに対応した本格的な xterm.js ターミナル |
 | **[CloudCLI Scheduler](https://github.com/grostim/cloudcli-cron)** | ワークスペース単位のスケジュール済みプロンプトを作成し、Codex、Claude Code などのローカル CLI で実行 |
-| **[PRISM CloudCLI](https://github.com/jakeefr/cloudcli-plugin-prism)** | CloudCLI 内で Claude Code のセッション分析を行い、トークン消費の可視化も提供 |
+| **[PRISM CloudCLI](https://github.com/jakeefr/cloudcli-plugin-prism)** | Cloude Agent 内で Claude Code のセッション分析を行い、トークン消費の可視化も提供 |
 | **[Sessions](https://github.com/strykereye2/cloudcli-plugin-session-manager)** | アクティブな Claude Code セッションを表示、管理、終了 |
 | **[Token Cost Calculator](https://github.com/NightmareAway/cloudcli-plugin-token-cost-calculator)** | モデル価格とトークン使用量から API コストを計算し、モデル価格プリセットにも対応 |
 | **[Task Queue](https://github.com/TadMSTR/cloudcli-plugin-task-queue)** | エージェントタスクを表示、フィルタリング、起動するためのタスクキューダッシュボード |
@@ -180,10 +180,10 @@ CloudCLI にはプラグインシステムがあり、独自のフロントエ�
 
 Claude Code Remote Control は、ローカル端末で既に動作しているセッションへメッセージを送れる仕組みです。マシンを起動したままにし、端末も開いたままにする必要があり、ネットワーク接続がない状態が約 10 分続くとセッションがタイムアウトします。
 
-CloudCLI UI と CloudCLI Cloud は、Claude Code の横に別物として存在するのではなく、Claude Code を拡張します — MCP サーバー、権限、設定、セッションは Claude Code がネイティブに使うものと完全に同一です。複製したり、別系統で管理したりしません。
+Cloude Agent UI と CloudCLI Cloud は、Claude Code の横に別物として存在するのではなく、Claude Code を拡張します — MCP サーバー、権限、設定、セッションは Claude Code がネイティブに使うものと完全に同一です。複製したり、別系統で管理したりしません。
 
-- **すべてのセッションにアクセス** — CloudCLI UI は `~/.claude` フォルダのすべてのセッションを自動検出します。Remote Control は、Claude モバイルアプリで利用可能にするため、1つのアクティブセッションだけを公開します。
-- **設定はあなたの設定** — CloudCLI UI で変更した MCP サーバー、ツール権限、プロジェクト構成は、Claude Code の設定に直接書き込まれて即座に反映され、その逆（Claude Code での変更が UI に反映）も同様です。
+- **すべてのセッションにアクセス** — Cloude Agent UI は `~/.claude` フォルダのすべてのセッションを自動検出します。Remote Control は、Claude モバイルアプリで利用可能にするため、1つのアクティブセッションだけを公開します。
+- **設定はあなたの設定** — Cloude Agent UI で変更した MCP サーバー、ツール権限、プロジェクト構成は、Claude Code の設定に直接書き込まれて即座に反映され、その逆（Claude Code での変更が UI に反映）も同様です。
 - **対応エージェントがさらに充実** — Claude Code に加えて Cursor CLI、Codex にも対応しています。
 - **チャット窓だけではない完全な UI** — ファイルエクスプローラー、Git 統合、MCP 管理、シェル端末などがすべて組み込まれています。
 - **CloudCLI Cloud はクラウド上で稼働** — ノートパソコンを閉じてもエージェントは動き続けます。監視が要る端末も、スリープ防止も不要です。
@@ -193,12 +193,12 @@ CloudCLI UI と CloudCLI Cloud は、Claude Code の横に別物として存在�
 <details>
 <summary>AI のサブスクリプションは別途支払いが必要ですか？</summary>
 
-はい。CloudCLI は環境を提供するものであり、AI は含まれません。Claude、Cursor、Codex のいずれかのサブスクリプションはご自身でご用意ください。CloudCLI Cloud のホスティング環境はそれに加えて月額 €7 から提供されます。
+はい。Cloude Agent は環境を提供するものであり、AI は含まれません。Claude、Cursor、Codex のいずれかのサブスクリプションはご自身でご用意ください。CloudCLI Cloud のホスティング環境はそれに加えて月額 €7 から提供されます。
 
 </details>
 
 <details>
-<summary>CloudCLI UI をスマホで使えますか？</summary>
+<summary>Cloude Agent UI をスマホで使えますか？</summary>
 
 はい。セルフホストの場合は、自身のマシンでサーバーを起動し、ネットワーク内のブラウザで `[yourip]:port` を開いてください。CloudCLI Cloud を使う場合は、任意のデバイスからアクセスできます。VPN もポートフォワーディングも不要で、セットアップも不要です。ネイティブアプリも開発中です。
 
@@ -207,7 +207,7 @@ CloudCLI UI と CloudCLI Cloud は、Claude Code の横に別物として存在�
 <details>
 <summary>UI で加えた変更はローカルの Claude Code 設定に影響しますか？</summary>
 
-はい、セルフホストの場合です。CloudCLI UI は Claude Code がネイティブに使う `~/.claude` 設定を読み書きします。UI から追加した MCP サーバーは即座に Claude Code に反映され、その逆も同様です。
+はい、セルフホストの場合です。Cloude Agent UI は Claude Code がネイティブに使う `~/.claude` 設定を読み書きします。UI から追加した MCP サーバーは即座に Claude Code に反映され、その逆も同様です。
 
 </details>
 

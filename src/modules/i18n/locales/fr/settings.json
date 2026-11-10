@@ -369,7 +369,7 @@
       "versionUnavailable": "Impossible de lire la version",
       "updateAvailable": "Mise à jour disponible : v{{version}}",
       "upToDate": "À jour",
-      "bundled": "Fournie avec CloudCLI et mise à jour en même temps que lui.",
+      "bundled": "Fournie avec Cloude Agent et mise à jour en même temps que lui.",
       "platform": "Gérée par la plateforme d'hébergement.",
       "updateTo": "Mettre à jour vers v{{version}}",
       "runUpdater": "Lancer la mise à jour",
@@ -557,7 +557,7 @@
     "docs": "Docs",
     "sections": {
       "officialTitle": "Plugins officiels",
-      "officialDescription": "Maintenus par l'équipe CloudCLI et prêts à être installés directement.",
+      "officialDescription": "Maintenus par l'équipe Cloude Agent et prêts à être installés directement.",
       "unofficialTitle": "Autres plugins",
       "unofficialDescription": "Plugins non officiels et intégrations d'autres utilisateurs. Examinez le code source avant d'installer."
     },
@@ -582,7 +582,7 @@
     "prismCloudCLI": {
       "name": "PRISM CloudCLI",
       "badge": "non officiel",
-      "description": "Intelligence de session pour Claude Code, dans CloudCLI. Voyez pourquoi vos sessions consomment des tokens sans quitter le navigateur.",
+      "description": "Intelligence de session pour Claude Code, dans Cloude Agent. Voyez pourquoi vos sessions consomment des tokens sans quitter le navigateur.",
       "install": "Installer"
     },
     "sessionManagerPlugin": {
