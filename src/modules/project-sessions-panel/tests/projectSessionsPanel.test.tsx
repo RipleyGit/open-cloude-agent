@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ProjectSessionsHandle from '@/modules/project-sessions-panel/ProjectSessionsHandle';
 import ProjectSessionsHeader from '@/modules/project-sessions-panel/ProjectSessionsHeader';
@@ -9,8 +9,11 @@ import ProjectSessionsPanel from '@/modules/project-sessions-panel/ProjectSessio
 import ProjectSessionRow from '@/modules/project-sessions-panel/ProjectSessionRow';
 import type { Project, SessionWithProvider } from '@/shared/types';
 
+// The panel branches on viewport width: docked column on desktop, drawer on
+// mobile. Mutable so each suite can pick the form it is covering.
+const deviceSettings = vi.hoisted(() => ({ isMobile: false }));
 vi.mock('@/shared/hooks/useDeviceSettings', () => ({
-  useDeviceSettings: () => ({ isMobile: false }),
+  useDeviceSettings: () => deviceSettings,
 }));
 
 // Session delete inside the list resolves through the real `api` module; stub it
@@ -53,8 +56,9 @@ vi.mock('@/shared/ui/SessionOptions', () => ({
 }));
 
 describe('ProjectSessionsHeader', () => {
-  it('renders project name and session count, with no close or new-session button', () => {
+  it('renders project name, session count, a close button and the pin', () => {
     const onTogglePin = vi.fn();
+    const onClose = vi.fn();
 
     render(
       <ProjectSessionsHeader
@@ -62,6 +66,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={5}
         isPinned
         onTogglePin={onTogglePin}
+        onClose={onClose}
       />,
     );
 
@@ -69,10 +74,11 @@ describe('ProjectSessionsHeader', () => {
     expect(screen.getByText('DemoProject')).toBeDefined();
     expect(screen.getByText('5')).toBeDefined();
 
-    // The new-session button moved to the foot of the list; the close button is
-    // gone — only the pin remains in the header.
+    // The new-session button moved to the foot of the list; the close button
+    // dismisses the docked panel, which has no backdrop to click.
     expect(screen.queryByText('新建')).toBeNull();
-    expect(screen.queryByTitle('收起会话列表')).toBeNull();
+    fireEvent.click(screen.getByTitle('收起会话列表'));
+    expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.getByTitle('取消固定（收起会话列表）')).toBeDefined();
   });
 
@@ -84,6 +90,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={0}
         isPinned={false}
         onTogglePin={onTogglePin}
+        onClose={vi.fn()}
       />,
     );
 
@@ -100,6 +107,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={0}
         isPinned={false}
         onTogglePin={vi.fn()}
+        onClose={vi.fn()}
       />,
     );
 
@@ -112,6 +120,7 @@ describe('ProjectSessionsHeader', () => {
         sessionCount={0}
         isPinned
         onTogglePin={vi.fn()}
+        onClose={vi.fn()}
       />,
     );
 
@@ -339,7 +348,7 @@ describe('ProjectSessionsHandle', () => {
     const button = screen.getByRole('button', { name: '展开会话列表' });
     expect(button.style.top).toBe('40%');
     expect(button.style.right).toBe('0px');
-    expect(button.getAttribute('title')).toBe('拖拽可停靠在对话窗口左侧或右侧，点击展开/收起会话列表');
+    expect(button.getAttribute('title')).toBe('拖拽可停靠在项目侧边栏右侧或窗口右侧，点击展开/收起会话列表');
 
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
@@ -417,267 +426,401 @@ describe('ProjectSessionsPanel', () => {
     onNewSession: vi.fn(),
   };
 
-  it('re-docks into the content region when the project (and its container) appears', () => {
-    // Regression: `contentRegionReady` (= !isLoadingProjects) flipped true one
-    // commit before `#workspace-content-region` mounted, caching the portal on
-    // the column-oriented conversation region. Tapping the handle then opened
-    // the list *inside* that wrong container, where it stacked under the chat
-    // and was clipped — icon gone, list invisible. The portal target must
-    // re-resolve when the project is selected, not one commit early.
-    const conversationRegion = document.createElement('div');
-    conversationRegion.id = 'workspace-conversation-region';
-    document.body.appendChild(conversationRegion);
-
-    const { rerender } = render(
-      <ProjectSessionsPanel {...panelProps} selectedProjectForDocking={null} />,
-    );
-
-    expect(screen.getByRole('button', { name: '展开会话列表' }).parentElement)
-      .toBe(conversationRegion);
-
-    const contentRegion = document.createElement('div');
-    contentRegion.id = 'workspace-content-region';
-    document.body.appendChild(contentRegion);
-
-    const project = {
-      projectId: 'p1',
-      displayName: 'Demo',
-      fullPath: '/demo',
-      sessions: [],
-    } as unknown as Project;
-
-    rerender(<ProjectSessionsPanel {...panelProps} selectedProjectForDocking={project} />);
-
-    expect(screen.getByRole('button', { name: '展开会话列表' }).parentElement)
-      .toBe(contentRegion);
-
-    // Tapping the handle must open the list inside the correct (row-oriented)
-    // content region — the aside itself, not just the handle, is what docks.
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
-    const panel = screen.getByRole('complementary', { name: '项目会话列表' });
-    expect(panel.parentElement).toBe(contentRegion);
-
-    conversationRegion.remove();
-    contentRegion.remove();
+  afterEach(() => {
+    deviceSettings.isMobile = false;
+    localStorage.removeItem('project_sessions_handle_side');
+    localStorage.removeItem('project_sessions_handle_position');
   });
 
-  it('overlays the chat as an absolute drawer, keeping the chat full-width', () => {
-    const contentRegion = document.createElement('div');
-    contentRegion.id = 'workspace-content-region';
-    document.body.appendChild(contentRegion);
+  describe('docked beside the chat on desktop', () => {
+    it('takes part in the shell layout instead of covering the chat window', () => {
+      // The list used to be portaled into the chat's content region, where it
+      // was confined to the conversation window, and then floated over it. It
+      // is now a column in the shell's flex row, so the chat shrinks rather
+      // than being covered — the composer stays reachable.
+      const contentRegion = document.createElement('div');
+      contentRegion.id = 'workspace-content-region';
+      document.body.appendChild(contentRegion);
 
-    render(<ProjectSessionsPanel {...panelProps} />);
+      render(<ProjectSessionsPanel {...panelProps} />);
 
-    // Collapsed: nothing is laid out over the chat, just the edge handle.
-    expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
-    const handle = screen.getByRole('button', { name: '展开会话列表' });
-    expect(handle.style.right).toBe('0px');
+      // Collapsed: nothing is laid out over the window, just the edge handle.
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      const handle = screen.getByRole('button', { name: '展开会话列表' });
+      expect(handle.style.right).toBe('0px');
 
-    fireEvent.click(handle);
+      fireEvent.click(handle);
 
-    const panel = screen.getByRole('complementary', { name: '项目会话列表' });
-    expect(panel.parentElement).toBe(contentRegion);
-    // Absolute overlay, not a flex sibling: the chat column keeps full width.
-    expect(panel.className).toContain('absolute');
-    expect(panel.className).not.toContain('flex-shrink-0');
-    // Anchored to an edge (default side is right) rather than placed in flow.
-    expect(panel.className).toContain('right-0');
-    expect(panel.className).not.toContain('order-last');
-    expect(panel.className).not.toContain('order-first');
-    // No backdrop is ever rendered over the conversation.
-    expect(panel.querySelector('.inset-0')).toBeNull();
-    // The floating handle disappears once the list opens; it returns on close.
-    expect(panel.querySelector('button[aria-label="展开会话列表"]')).toBeNull();
-    expect(panel.querySelector('button[aria-label="收起会话列表"]')).toBeNull();
+      const panel = screen.getByRole('complementary', { name: '项目会话列表' });
+      // Not a child of the chat's content region.
+      expect(contentRegion.contains(panel)).toBe(false);
+      // A layout sibling that reserves its own width and never shrinks.
+      expect(panel.className).toContain('flex-shrink-0');
+      expect(panel.className).toContain('h-full');
+      // In flow, not anchored over the window.
+      expect(panel.className).not.toContain('fixed');
+      expect(panel.className).not.toContain('inset-0');
+      // No backdrop: the chat beside it stays clickable.
+      expect(screen.queryByRole('button', { name: '关闭会话列表' })).toBeNull();
+      // The floating handle disappears once the list opens; it returns on close.
+      expect(screen.queryByRole('button', { name: '展开会话列表' })).toBeNull();
 
-    contentRegion.remove();
+      contentRegion.remove();
+    });
+
+    it('sits right of the project sidebar when the handle is docked left', () => {
+      const first = render(<ProjectSessionsPanel {...panelProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      // Default side is right: after the chat in the shell's flex row.
+      expect(screen.getByRole('complementary', { name: '项目会话列表' }).style.order).toBe('3');
+
+      first.unmount();
+
+      // The side is persisted, so a remount opens on the left instead.
+      localStorage.setItem('project_sessions_handle_side', 'left');
+
+      render(<ProjectSessionsPanel {...panelProps} />);
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+
+      const leftPanel = screen.getByRole('complementary', { name: '项目会话列表' });
+      // Order 1 lands between the sidebar (0) and the chat (2), so it starts at
+      // the sidebar's right edge rather than over it.
+      expect(leftPanel.style.order).toBe('1');
+      expect(leftPanel.className).toContain('session-dock-enter-left');
+      expect(leftPanel.className).toContain('border-r');
+    });
+
+    it('steps aside when the chat or a blank area is clicked, and closes from its header', () => {
+      render(<ProjectSessionsPanel {...panelProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+
+      // Unpinned: a click out in the chat — where the composer lives — takes the
+      // user back to the conversation, so the panel steps aside.
+      fireEvent.pointerDown(document.body);
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+
+      // So does a click on the panel's own blank surface.
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByRole('complementary', { name: '项目会话列表' }));
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+
+      // The header's close button dismisses it too, without any outside click.
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByTitle('收起会话列表'));
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+    });
+
+    it('keeps a pinned panel open when the chat beside it is clicked', () => {
+      render(<ProjectSessionsPanel {...panelProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByTitle('固定（常驻显示会话列表）'));
+
+      const panel = screen.getByRole('complementary', { name: '项目会话列表' });
+      fireEvent.pointerDown(document.body);
+      fireEvent.click(panel);
+      expect(panel).toBeDefined();
+    });
+
+    it('rests against the project sidebar when docked on its left', () => {
+      // jsdom reports a zero-sized rect, so stand in for the docked sidebar.
+      const sidebar = document.createElement('div');
+      sidebar.id = 'workspace-sidebar-region';
+      sidebar.getBoundingClientRect = () => ({ right: 288 }) as DOMRect;
+      document.body.appendChild(sidebar);
+      localStorage.setItem('project_sessions_handle_side', 'left');
+
+      render(<ProjectSessionsPanel {...panelProps} />);
+
+      // Collapsed: the handle sits just right of the sidebar, never on top of it.
+      const handle = screen.getByRole('button', { name: '展开会话列表' });
+      expect(handle.style.left).toBe('288px');
+      expect(handle.style.right).toBe('');
+
+      sidebar.remove();
+    });
+
+    it('rests against the window edge when no sidebar is docked', () => {
+      localStorage.setItem('project_sessions_handle_side', 'left');
+
+      render(<ProjectSessionsPanel {...panelProps} />);
+
+      // Mobile has no docked sidebar, so the left edge is the window's.
+      const handle = screen.getByRole('button', { name: '展开会话列表' });
+      expect(handle.style.left).toBe('0px');
+    });
+
+    it('cannot be dragged over the project sidebar', () => {
+      // jsdom reports a zero-sized rect, so stand in for the docked sidebar.
+      const sidebar = document.createElement('div');
+      sidebar.id = 'workspace-sidebar-region';
+      sidebar.getBoundingClientRect = () => ({ right: 288 }) as DOMRect;
+      document.body.appendChild(sidebar);
+
+      render(<ProjectSessionsPanel {...panelProps} />);
+      const handle = screen.getByRole('button', { name: '展开会话列表' });
+
+      // Drag from beside the sidebar far past its left edge.
+      fireEvent.mouseDown(handle, { clientX: 300, clientY: 300 });
+      fireEvent.mouseMove(document, { clientX: 4, clientY: 400 });
+      fireEvent.mouseUp(document);
+
+      // Released left of the sidebar, so it snaps to the sidebar's right edge
+      // instead of the window's.
+      expect(screen.getByRole('button', { name: '展开会话列表' }).style.left).toBe('288px');
+
+      sidebar.remove();
+    });
+
+    it('closes an unpinned panel when a session is picked, and closes on Escape', () => {
+      const onSessionSelect = vi.fn();
+      const project = {
+        projectId: 'p1',
+        displayName: 'Demo',
+        fullPath: '/demo',
+        sessions: [
+          {
+            id: 's1',
+            summary: 'Refactor parser',
+            __provider: 'claude',
+            createdAt: '2026-11-04T10:00:00Z',
+            lastActivity: '2026-11-04T10:00:00Z',
+          },
+        ],
+      } as unknown as Project;
+
+      render(
+        <ProjectSessionsPanel
+          {...panelProps}
+          project={project}
+          onSessionSelect={onSessionSelect}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByText('Refactor parser'));
+
+      expect(onSessionSelect).toHaveBeenCalledTimes(1);
+      // Unpinned: picking a session is the panel's primary action, so the
+      // panel closes once the chat lands on that session.
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      // The handle returns.
+      expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+    });
+
+    it('keeps a pinned panel open when a session is picked, and closes on Escape', () => {
+      const onSessionSelect = vi.fn();
+      const project = {
+        projectId: 'p1',
+        displayName: 'Demo',
+        fullPath: '/demo',
+        sessions: [
+          {
+            id: 's1',
+            summary: 'Refactor parser',
+            __provider: 'claude',
+            createdAt: '2026-11-04T10:00:00Z',
+            lastActivity: '2026-11-04T10:00:00Z',
+          },
+        ],
+      } as unknown as Project;
+
+      render(
+        <ProjectSessionsPanel
+          {...panelProps}
+          project={project}
+          onSessionSelect={onSessionSelect}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      // Pin the panel so it stays open across session switches.
+      fireEvent.click(screen.getByTitle('固定（常驻显示会话列表）'));
+
+      fireEvent.click(screen.getByText('Refactor parser'));
+      expect(onSessionSelect).toHaveBeenCalledTimes(1);
+      // Pinned: the panel stays open after a session is picked.
+      expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+    });
+
+    it('lights the pin to keep the list open and unlighting it closes the list', () => {
+      render(<ProjectSessionsPanel {...panelProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+
+      // Lighting the pin keeps the list 常驻: it stays open.
+      fireEvent.click(screen.getByTitle('固定（常驻显示会话列表）'));
+      expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+      const pin = screen.getByTitle('取消固定（收起会话列表）');
+      expect(pin.getAttribute('aria-pressed')).toBe('true');
+
+      // Unlighting the pin closes the list and brings the handle back.
+      fireEvent.click(pin);
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+    });
   });
 
-  it('opening the list docks the aside into the content region, never under the chat', () => {
-    // Regression for "图标没了，列表完全没出现": the handle disappeared (isOpen
-    // became true) but the aside was portaled into the column-oriented
-    // conversation region, where it stacked below the full-height chat and was
-    // clipped by overflow-hidden — so the list was never visible.
-    const conversationRegion = document.createElement('div');
-    conversationRegion.id = 'workspace-conversation-region';
-    document.body.appendChild(conversationRegion);
-    const contentRegion = document.createElement('div');
-    contentRegion.id = 'workspace-content-region';
-    document.body.appendChild(contentRegion);
+  describe('as a drawer on mobile', () => {
+    it('covers the whole window with a backdrop, outside the chat content region', () => {
+      deviceSettings.isMobile = true;
 
-    const project = {
-      projectId: 'p1',
-      displayName: 'Demo',
-      fullPath: '/demo',
-      sessions: [
-        {
-          id: 's1',
-          summary: 'Refactor parser',
-          __provider: 'claude',
-          createdAt: '2026-11-04T10:00:00Z',
-          lastActivity: '2026-11-04T10:00:00Z',
-        },
-      ],
-    } as unknown as Project;
+      // The list used to be portaled into the chat's content region, where it
+      // was confined to the conversation window. It is now a drawer over the
+      // whole window, so it must render outside that region entirely.
+      const contentRegion = document.createElement('div');
+      contentRegion.id = 'workspace-content-region';
+      document.body.appendChild(contentRegion);
 
-    render(
-      <ProjectSessionsPanel
-        {...panelProps}
-        project={project}
-        selectedProjectForDocking={project}
-      />,
-    );
+      render(<ProjectSessionsPanel {...panelProps} />);
 
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
 
-    // The aside docks into the row-oriented content region — never the
-    // conversation region — so it sits beside the chat rather than under it.
-    const panel = screen.getByRole('complementary', { name: '项目会话列表' });
-    expect(panel.parentElement).toBe(contentRegion);
-    expect(panel.parentElement).not.toBe(conversationRegion);
-    // The floating handle is gone while the list is open.
-    expect(screen.queryByRole('button', { name: '展开会话列表' })).toBeNull();
+      const panel = screen.getByRole('complementary', { name: '项目会话列表' });
+      // Not a child of the chat's content region — the drawer left the chat window.
+      expect(contentRegion.contains(panel)).toBe(false);
+      expect(panel.parentElement?.className).toContain('fixed');
+      expect(panel.parentElement?.className).toContain('inset-0');
+      // A drawer panel, not a flex sibling squeezing the chat.
+      expect(panel.className).not.toContain('flex-shrink-0');
+      // Anchored to an edge (default side is right) rather than placed in flow.
+      expect(panel.className).toContain('right-0');
+      // An unpinned drawer dims the window behind it.
+      const backdrop = screen.getByRole('button', { name: '关闭会话列表' });
+      expect(backdrop.className).toContain('backdrop-blur-sm');
+      // The floating handle disappears once the list opens; it returns on close.
+      expect(screen.queryByRole('button', { name: '展开会话列表' })).toBeNull();
 
-    conversationRegion.remove();
-    contentRegion.remove();
-  });
+      contentRegion.remove();
+    });
 
-  it('hides the handle once the list opens and brings it back on blank-area close', () => {
-    const contentRegion = document.createElement('div');
-    contentRegion.id = 'workspace-content-region';
-    document.body.appendChild(contentRegion);
+    it('slides in from the edge the handle was last docked on', () => {
+      deviceSettings.isMobile = true;
 
-    render(<ProjectSessionsPanel {...panelProps} />);
+      const first = render(<ProjectSessionsPanel {...panelProps} />);
 
-    const handle = screen.getByRole('button', { name: '展开会话列表' });
-    fireEvent.click(handle);
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      // Default side is right.
+      expect(screen.getByRole('complementary', { name: '项目会话列表' }).className)
+        .toContain('session-drawer-enter-right');
 
-    // Entering the list hides the session icon.
-    const panel = screen.getByRole('complementary', { name: '项目会话列表' });
-    expect(panel).toBeDefined();
-    expect(screen.queryByRole('button', { name: '展开会话列表' })).toBeNull();
+      first.unmount();
 
-    // Clicking the panel's blank area (not a row/button/input) closes the list
-    // and brings the handle back.
-    fireEvent.click(panel);
+      // The side is persisted, so a remount slides in from the left instead.
+      localStorage.setItem('project_sessions_handle_side', 'left');
 
-    expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
-    expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+      render(<ProjectSessionsPanel {...panelProps} />);
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
 
-    contentRegion.remove();
-  });
+      const leftPanel = screen.getByRole('complementary', { name: '项目会话列表' });
+      expect(leftPanel.className).toContain('session-drawer-enter-left');
+      expect(leftPanel.className).toContain('border-r');
+    });
 
-  it('closes an unpinned drawer when a session is picked, and closes on Escape', () => {
-    const contentRegion = document.createElement('div');
-    contentRegion.id = 'workspace-content-region';
-    document.body.appendChild(contentRegion);
+    it('drops the backdrop while pinned so the chat beside the drawer stays clickable', () => {
+      deviceSettings.isMobile = true;
 
-    const onSessionSelect = vi.fn();
-    const project = {
-      projectId: 'p1',
-      displayName: 'Demo',
-      fullPath: '/demo',
-      sessions: [
-        {
-          id: 's1',
-          summary: 'Refactor parser',
-          __provider: 'claude',
-          createdAt: '2026-11-04T10:00:00Z',
-          lastActivity: '2026-11-04T10:00:00Z',
-        },
-      ],
-    } as unknown as Project;
+      render(<ProjectSessionsPanel {...panelProps} />);
 
-    render(
-      <ProjectSessionsPanel
-        {...panelProps}
-        project={project}
-        onSessionSelect={onSessionSelect}
-      />,
-    );
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      expect(screen.getByRole('button', { name: '关闭会话列表' })).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
-    fireEvent.click(screen.getByText('Refactor parser'));
+      fireEvent.click(screen.getByTitle('固定（常驻显示会话列表）'));
 
-    expect(onSessionSelect).toHaveBeenCalledTimes(1);
-    // Unpinned: picking a session is the drawer's primary action, so the
-    // drawer closes once the chat lands on that session.
-    expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
-    // The handle returns.
-    expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+      const panel = screen.getByRole('complementary', { name: '项目会话列表' });
+      expect(panel).toBeDefined();
+      // Pinned: no backdrop, and the wrapper lets clicks through to the chat.
+      expect(screen.queryByRole('button', { name: '关闭会话列表' })).toBeNull();
+      expect(panel.parentElement?.className).toContain('pointer-events-none');
+    });
 
-    contentRegion.remove();
-  });
+    it('closes an unpinned drawer when the backdrop is clicked', () => {
+      deviceSettings.isMobile = true;
 
-  it('keeps a pinned drawer open when a session is picked, and closes on Escape', () => {
-    const contentRegion = document.createElement('div');
-    contentRegion.id = 'workspace-content-region';
-    document.body.appendChild(contentRegion);
+      render(<ProjectSessionsPanel {...panelProps} />);
 
-    const onSessionSelect = vi.fn();
-    const project = {
-      projectId: 'p1',
-      displayName: 'Demo',
-      fullPath: '/demo',
-      sessions: [
-        {
-          id: 's1',
-          summary: 'Refactor parser',
-          __provider: 'claude',
-          createdAt: '2026-11-04T10:00:00Z',
-          lastActivity: '2026-11-04T10:00:00Z',
-        },
-      ],
-    } as unknown as Project;
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByRole('button', { name: '关闭会话列表' }));
 
-    render(
-      <ProjectSessionsPanel
-        {...panelProps}
-        project={project}
-        onSessionSelect={onSessionSelect}
-      />,
-    );
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
-    // Pin the drawer so it stays open across session switches.
-    fireEvent.click(screen.getByTitle('固定（常驻显示会话列表）'));
+    it('closes an unpinned drawer on blank-area and outside clicks', () => {
+      deviceSettings.isMobile = true;
 
-    fireEvent.click(screen.getByText('Refactor parser'));
-    expect(onSessionSelect).toHaveBeenCalledTimes(1);
-    // Pinned: the drawer stays open after a session is picked.
-    expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+      render(<ProjectSessionsPanel {...panelProps} />);
 
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
 
-    contentRegion.remove();
-  });
+      // Clicking the drawer's blank area (not a row/button/input) closes it and
+      // brings the handle back.
+      fireEvent.click(screen.getByRole('complementary', { name: '项目会话列表' }));
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+      expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
 
-  it('lights the pin to keep the list open and unlighting it closes the list', () => {
-    const contentRegion = document.createElement('div');
-    contentRegion.id = 'workspace-content-region';
-    document.body.appendChild(contentRegion);
+      // So does a pointerdown anywhere else in the window.
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+      fireEvent.pointerDown(document.body);
+      expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
+    });
+    it('deletes from an unpinned drawer: the confirm dialog survives its own pointerdown', async () => {
+      // Regression: the outside-click listener closed the unpinned drawer on the
+      // pointerdown that preceded the dialog button's click. That unmounted the
+      // list (and its pendingDelete state) before the click landed, so confirming
+      // a delete did nothing. A real browser always fires pointerdown first.
+      deviceSettings.isMobile = true;
+      const { waitFor } = await import('@testing-library/react');
 
-    render(<ProjectSessionsPanel {...panelProps} />);
+      const onSessionDelete = vi.fn();
+      const project = {
+        projectId: 'p1',
+        displayName: 'Demo',
+        fullPath: '/demo',
+        sessions: [
+          {
+            id: 's1',
+            summary: 'Refactor parser',
+            __provider: 'claude',
+            createdAt: '2026-11-04T10:00:00Z',
+            lastActivity: '2026-11-04T10:00:00Z',
+          },
+        ],
+      } as unknown as Project;
 
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
-    expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+      render(
+        <ProjectSessionsPanel
+          {...panelProps}
+          project={project}
+          onSessionDelete={onSessionDelete}
+        />,
+      );
 
-    // Lighting the pin keeps the list 常驻: it stays open.
-    fireEvent.click(screen.getByTitle('固定（常驻显示会话列表）'));
-    expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
-    const pin = screen.getByTitle('取消固定（收起会话列表）');
-    expect(pin.getAttribute('aria-pressed')).toBe('true');
+      // Open the unpinned drawer and reach the confirm dialog through bulk delete.
+      fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+      fireEvent.click(screen.getByText('sessions.select'));
+      fireEvent.click(screen.getByText('sessions.selectAll'));
+      fireEvent.click(screen.getByText('sessions.deleteSelected:count=1'));
 
-    // A pinned list ignores blank-area clicks.
-    fireEvent.click(screen.getByRole('complementary', { name: '项目会话列表' }));
-    expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
+      const confirm = screen.getByText('彻底删除 (不可恢复)');
+      fireEvent.pointerDown(confirm);
 
-    // Unlighting the pin closes the list and brings the handle back.
-    fireEvent.click(pin);
-    expect(screen.queryByRole('complementary', { name: '项目会话列表' })).toBeNull();
-    expect(screen.getByRole('button', { name: '展开会话列表' })).toBeDefined();
+      // The dialog (and the drawer under it) must still be mounted.
+      expect(screen.queryByText('彻底删除 (不可恢复)')).not.toBeNull();
+      expect(screen.getByRole('complementary', { name: '项目会话列表' })).toBeDefined();
 
-    contentRegion.remove();
+      fireEvent.click(confirm);
+      await waitFor(() => expect(onSessionDelete).toHaveBeenCalledWith('s1'));
+    });
   });
 });

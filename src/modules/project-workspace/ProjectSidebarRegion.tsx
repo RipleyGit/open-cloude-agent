@@ -118,6 +118,7 @@ function ProjectSidebarRegion({
   if (!isMobile) {
     return (
       <div
+        id="workspace-sidebar-region"
         className="relative h-full flex-shrink-0 border-r border-border/50"
         style={isSidebarResizable ? { width: sidebarWidth } : undefined}
       >

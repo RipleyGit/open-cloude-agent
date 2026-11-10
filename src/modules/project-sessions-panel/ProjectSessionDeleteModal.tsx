@@ -24,7 +24,12 @@ export default function ProjectSessionDeleteModal({
   }
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-label="删除会话"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-150"
+    >
       <div className="w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
         <div className="p-5">
           <div className="flex items-start gap-3.5">

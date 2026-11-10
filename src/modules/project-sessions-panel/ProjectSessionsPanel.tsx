@@ -1,6 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import type { CSSProperties, MouseEvent as ReactMouseEvent, RefObject } from 'react';
-import { createPortal } from 'react-dom';
+import { memo, useCallback, useEffect, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 
 import { useBackgroundSessionIdSet, useBusySessionIdSet } from '@/shared/context/SessionProtectionContext';
 import { useDeviceSettings } from '@/shared/hooks/useDeviceSettings';
@@ -13,7 +12,6 @@ import ProjectSessionsList from '@/modules/project-sessions-panel/ProjectSession
 export type ProjectSessionsPanelProps = {
   project: Project | null;
   selectedSession: ProjectSession | null;
-  conversationRegionRef?: RefObject<HTMLElement | null>;
   onSessionSelect: (session: SessionWithProvider) => void;
   onNewSession: () => void;
   onSessionDelete?: (sessionId: string) => void;
@@ -21,32 +19,25 @@ export type ProjectSessionsPanelProps = {
   onRenameSession?: (projectName: string, sessionId: string, summary: string, provider: LLMProvider) => void;
   isLoading?: boolean;
   attentionSessionIds?: ReadonlySet<string>;
-  /**
-   * The content region the panel docks into (`#workspace-content-region`) only
-   * mounts once the workspace has a selected project — WorkspaceMain early-
-   * returns a loading/empty view while none is set, in which case that node is
-   * absent and the portal must fall back. Passing the project (not a boolean)
-   * makes the effect re-resolve exactly when the region appears, instead of
-   * one commit earlier on the coarse `!isLoadingProjects` flag — that one-
-   * commit gap left the portal cached on the column-oriented conversation
-   * region, where the docked aside stacked under the chat and was clipped.
-   */
-  selectedProjectForDocking?: Project | null;
 };
 
 /**
- * Session list of the active project, rendered as an overlay drawer over the
- * workspace content region. Used by ProjectSessionsRegion (workspace) to let
- * the user switch sessions without leaving the conversation.
+ * Session list of the active project, rendered by the workspace shell. On
+ * desktop it is a column docked into the shell's flex row, so the conversation
+ * window shrinks instead of being covered — the composer stays reachable while
+ * the list is open. On mobile there is no room to dock, so it falls back to a
+ * drawer over the whole window, the same presentation as the sidebar's drawer.
+ * Used by ProjectSessionsRegion (workspace) to let the user switch sessions
+ * without leaving the conversation.
  *
- * Because the panel is absolutely positioned over the content region, the chat
- * column keeps its full width and remains usable underneath; only the drawn
- * panel covers it while the list is open.
+ * While unpinned the panel is transient either way: clicking its blank area, or
+ * anywhere else in the window, closes it. The mobile drawer adds a dimmed
+ * backdrop to make that dismissal obvious; the docked desktop panel has none,
+ * since the chat beside it is already visible and clickable.
  */
 function ProjectSessionsPanel({
   project,
   selectedSession,
-  conversationRegionRef,
   onSessionSelect,
   onNewSession,
   onSessionDelete,
@@ -54,7 +45,6 @@ function ProjectSessionsPanel({
   onRenameSession,
   isLoading = false,
   attentionSessionIds,
-  selectedProjectForDocking,
 }: ProjectSessionsPanelProps) {
   const { isMobile } = useDeviceSettings({ trackPWA: false });
 
@@ -72,21 +62,7 @@ function ProjectSessionsPanel({
     handleStyle,
     startDrag,
     consumeSuppressedClick,
-  } = useProjectSessionsDrag({ isMobile, containerRef: conversationRegionRef });
-
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
-  // Re-resolves the dock target whenever the content region may have just
-  // appeared or disappeared: the region mounts only once a project is selected,
-  // so `selectedProjectForDocking` (not a loading flag) is the reliable trigger.
-  useEffect(() => {
-    const element = document.getElementById('workspace-content-region');
-    setPortalTarget(
-      element ??
-        conversationRegionRef?.current ??
-        document.getElementById('workspace-conversation-region'),
-    );
-  }, [conversationRegionRef, selectedProjectForDocking]);
+  } = useProjectSessionsDrag(isMobile);
 
   const activeSessions = useBusySessionIdSet();
   const backgroundSessionIds = useBackgroundSessionIdSet();
@@ -118,8 +94,8 @@ function ProjectSessionsPanel({
     [consumeSuppressedClick],
   );
 
-  // Clicking the list's blank area (not a row, button, input or link) closes an
-  // unpinned list and brings the handle back. A pinned list stays put.
+  // Clicking the panel's blank area (not a row, button, input or link) closes
+  // an unpinned panel and brings the handle back. A pinned panel stays put.
   const handlePanelBlankClick = useCallback(
     (event: ReactMouseEvent<HTMLElement>) => {
       if (isPinned) return;
@@ -138,8 +114,8 @@ function ProjectSessionsPanel({
   const handleSessionItemSelect = useCallback(
     (session: SessionWithProvider) => {
       onSessionSelect(session);
-      // Selecting a session is the drawer's primary action, so an unpinned
-      // drawer closes once it lands — the chat is now showing that session.
+      // Selecting a session is the panel's primary action, so an unpinned
+      // panel closes once it lands — the chat is now showing that session.
       if (!isPinned) {
         setIsOpen(false);
       }
@@ -147,9 +123,14 @@ function ProjectSessionsPanel({
     [isPinned, onSessionSelect],
   );
 
-  // Clicking outside an unpinned drawer closes it. The options menu portals to
-  // document.body, so clicks there must not close the drawer while the menu is
-  // open — the menu role and the drawer itself are whitelisted.
+  // Clicking outside an unpinned panel closes it — the chat window, or any
+  // blank area of the workspace. That is what makes the panel feel transient:
+  // it steps aside the moment the user goes back to the conversation, and the
+  // pin is there for keeping it around. The options menu and the delete
+  // confirmation portal to document.body, so clicks there must not close the
+  // panel either — closing it would unmount the list (and the dialog's pending
+  // state) before the click lands. The menu role, the dialog role and the panel
+  // itself are whitelisted.
   useEffect(() => {
     if (!isPanelVisible || isPinned) {
       return undefined;
@@ -160,7 +141,11 @@ function ProjectSessionsPanel({
       if (!(target instanceof Element)) {
         return;
       }
-      if (target.closest('aside[aria-label="项目会话列表"], [role="menu"]')) {
+      if (
+        target.closest(
+          'aside[aria-label="项目会话列表"], [role="menu"], [role="alertdialog"]',
+        )
+      ) {
         return;
       }
       setIsOpen(false);
@@ -190,23 +175,15 @@ function ProjectSessionsPanel({
     };
   }, [close, isPanelVisible]);
 
-  // The handle only exists while the list is collapsed (see `content` below),
-  // so it is always pinned to the conversation window's edge here. While
-  // dragging the hook owns the absolute cursor position.
-  const handleEdgeStyle = useMemo<CSSProperties>(() => {
-    if (isDragging) {
-      return handleStyle;
-    }
-
-    return side === 'left' ? { ...handleStyle, left: 0 } : { ...handleStyle, right: 0 };
-  }, [handleStyle, isDragging, side]);
-
+  // The handle only exists while the list is collapsed (see the return below),
+  // so the drag hook places it against the window's edge — or against the
+  // project sidebar when it is docked on the left.
   const handle = (
     <ProjectSessionsHandle
       isOpen={false}
       isDragging={isDragging}
       side={side}
-      style={handleEdgeStyle}
+      style={handleStyle}
       onClick={handleToggleFromHandle}
       onMouseDown={startDrag}
       onTouchStart={startDrag}
@@ -220,6 +197,7 @@ function ProjectSessionsPanel({
         sessionCount={sessions.length}
         isPinned={isPinned}
         onTogglePin={togglePin}
+        onClose={close}
       />
       <ProjectSessionsList
         project={project}
@@ -237,29 +215,63 @@ function ProjectSessionsPanel({
     </div>
   );
 
-  // Overlay drawer: absolutely positioned over the content region so the chat
-  // column keeps its full width instead of being squeezed by a flex sibling.
-  // The floating handle is not rendered here: once the list opens the icon
-  // disappears, and clicking the list's blank area closes it again.
-  const dockedContent = (
+  // Slide in from the edge the handle was last docked on, so a handle dragged
+  // to the left opens a left-hand panel and vice versa.
+  const isLeft = side === 'left';
+  const slideClass = isMobile
+    ? (isLeft ? 'session-drawer-enter-left' : 'session-drawer-enter-right')
+    : (isLeft ? 'session-dock-enter-left' : 'session-dock-enter-right');
+  const borderClass = isLeft ? 'border-r' : 'border-l';
+
+  // Mobile: a drawer over the whole window, mirroring the sidebar's drawer — a
+  // dimmed backdrop plus a panel that slides in from the edge the handle sits
+  // on. `--keyboard-height` keeps it above the virtual keyboard, the same
+  // offset the workspace shell uses. A pinned list drops the backdrop so the
+  // chat beside it stays usable, which is why the wrapper lets clicks through.
+  const mobileDrawer = (
+    <div
+      className="pointer-events-none fixed inset-0 z-50"
+      style={{ bottom: 'var(--keyboard-height, 0px)' }}
+    >
+      {!isPinned && (
+        <button
+          type="button"
+          onClick={close}
+          aria-label="关闭会话列表"
+          className="session-drawer-backdrop-enter pointer-events-auto absolute inset-0 bg-background/60 backdrop-blur-sm"
+        />
+      )}
+      <aside
+        aria-label="项目会话列表"
+        onClick={handlePanelBlankClick}
+        className={`${slideClass} pointer-events-auto absolute inset-y-0 ${isLeft ? 'left-0' : 'right-0'} flex w-[85vw] max-w-sm flex-col ${borderClass} border-border bg-card shadow-xl sm:w-72 lg:w-80`}
+      >
+        {panelBody}
+      </aside>
+    </div>
+  );
+
+  // Desktop: a column docked into the workspace shell's flex row, next to the
+  // project sidebar and the conversation window. Taking part in the layout is
+  // what keeps it from covering anything — the chat shrinks, so the composer
+  // stays reachable. `order` puts it on the handle's side, which on the left
+  // means immediately right of the project sidebar rather than over it.
+  const dockedPanel = (
     <aside
       aria-label="项目会话列表"
       onClick={handlePanelBlankClick}
-      className={`absolute inset-y-0 z-40 flex w-[42%] min-w-[168px] max-w-[220px] flex-col border-border bg-background shadow-xl sm:max-w-none sm:w-72 lg:w-80 ${
-        side === 'left' ? 'left-0 border-r' : 'right-0 border-l'
-      }`}
+      className={`${slideClass} flex h-full w-72 flex-shrink-0 flex-col ${borderClass} border-border bg-card lg:w-80`}
+      style={{ order: isLeft ? 1 : 3 }}
     >
       {panelBody}
     </aside>
   );
 
-  const content = isPanelVisible ? dockedContent : handle;
+  if (isMobile) {
+    return isPanelVisible ? mobileDrawer : handle;
+  }
 
-  return (
-    <>
-      {portalTarget ? createPortal(content, portalTarget) : content}
-    </>
-  );
+  return isPanelVisible ? dockedPanel : handle;
 }
 
 export default memo(ProjectSessionsPanel);

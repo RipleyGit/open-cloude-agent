@@ -1,4 +1,4 @@
-import { memo, useRef } from 'react';
+import { memo } from 'react';
 
 import ProjectEffects from '@/modules/project-workspace/controllers/ProjectEffects';
 import type { ProjectWorkspaceShellProps } from '@/shared/types';
@@ -14,8 +14,6 @@ function ProjectWorkspaceShell({
   sendMessage,
   navigate,
 }: ProjectWorkspaceShellProps) {
-  const conversationRegionRef = useRef<HTMLDivElement>(null);
-
   return (
     <div
       className="fixed inset-0 flex bg-background"
@@ -25,8 +23,6 @@ function ProjectWorkspaceShell({
       <ProjectSidebarRegion isMobile={isMobile} />
 
       <div
-        ref={conversationRegionRef}
-        id="workspace-conversation-region"
         className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
         style={{ order: 2 }}
       >
@@ -39,8 +35,10 @@ function ProjectWorkspaceShell({
       </div>
 
       <ProjectCommandPalette />
-      {/* Session list — slide-in drawer portaled into the content region below the tab bar */}
-      <ProjectSessionsRegion conversationRegionRef={conversationRegionRef} />
+      {/* Session list — a column docked beside the chat on desktop, a drawer
+          over the whole window on mobile. Either way it is laid out here, in
+          the shell's flex row, and never inside the chat window. */}
+      <ProjectSessionsRegion />
     </div>
   );
 }

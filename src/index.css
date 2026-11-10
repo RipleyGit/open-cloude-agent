@@ -995,6 +995,56 @@
     }
   }
 
+  /* Session drawer: slides in from the window edge the handle is docked on,
+     mirroring the sidebar drawer's transform transition */
+  @keyframes session-drawer-enter-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+
+  @keyframes session-drawer-enter-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  .session-drawer-enter-left {
+    animation: session-drawer-enter-left 150ms ease-out;
+  }
+
+  .session-drawer-enter-right {
+    animation: session-drawer-enter-right 150ms ease-out;
+  }
+
+  @keyframes session-drawer-backdrop-enter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .session-drawer-backdrop-enter {
+    animation: session-drawer-backdrop-enter 150ms ease-out;
+  }
+
+  /* Docked session panel (desktop): it takes part in the shell's flex row, so
+     it only eases in over the gap it just opened — a full-width slide would
+     paint it over the sidebar or the chat it is pushing aside. */
+  @keyframes session-dock-enter-left {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes session-dock-enter-right {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .session-dock-enter-left {
+    animation: session-dock-enter-left 150ms ease-out;
+  }
+
+  .session-dock-enter-right {
+    animation: session-dock-enter-right 150ms ease-out;
+  }
+
   /* Search result highlight flash */
   .search-highlight-flash {
     animation: search-flash 4s ease-out;

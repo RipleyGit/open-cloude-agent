@@ -1,4 +1,4 @@
-import { MessageCircleMore, Pin } from 'lucide-react';
+import { MessageCircleMore, Pin, X } from 'lucide-react';
 
 import { Badge, Button } from '@/shared/ui';
 
@@ -8,19 +8,22 @@ type ProjectSessionsHeaderProps = {
   /** Lit pin keeps the panel docked and expanded; a dim pin leaves it collapsed. */
   isPinned: boolean;
   onTogglePin: () => void;
+  /** Closes the panel. The desktop panel is docked rather than modal, so it
+   * needs its own dismiss control instead of a backdrop to click. */
+  onClose: () => void;
 };
 
 /**
- * Header of the docked project sessions panel: title, project name, session
- * count, and the pin toggle. The new-session button lives at the foot of the
- * list and the panel closes by pin-toggle / outside-click, so neither a close
- * button nor a new-session trigger belongs here.
+ * Header of the project sessions panel: title, project name, session count,
+ * the close button and the pin toggle. The new-session button lives at the
+ * foot of the list.
  */
 export default function ProjectSessionsHeader({
   projectName,
   sessionCount,
   isPinned,
   onTogglePin,
+  onClose,
 }: ProjectSessionsHeaderProps) {
   return (
     <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-border px-3 bg-muted/20">
@@ -40,6 +43,16 @@ export default function ProjectSessionsHeader({
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          aria-label="收起会话列表"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          title="收起会话列表"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"

@@ -14,10 +14,12 @@ type ProjectSessionsHandleProps = {
 };
 
 /**
- * The 2D draggable handle that toggles the docked sessions panel. Used by
- * ProjectSessionsPanel, which owns placement: pinned to the conversation
- * window's edge while collapsed, and straddling the docked panel's inner edge
- * while it is open.
+ * The 2D draggable handle that toggles the sessions panel. Used by
+ * ProjectSessionsPanel, which owns placement: pinned to the window's edge while
+ * collapsed, and unmounted while the panel is open.
+ *
+ * z-30, below the sidebar drawer's z-50 in the same shell stacking context, so
+ * the sidebar drawer's backdrop still covers this handle while it is open.
  */
 export default function ProjectSessionsHandle({
   isOpen,
@@ -45,7 +47,7 @@ export default function ProjectSessionsHandle({
       onClick={onClick}
       onMouseDown={onMouseDown}
       onTouchStart={onTouchStart}
-      className={`z-50 border bg-background p-2 shadow-md hover:bg-muted/80 ${borderClass} ${roundedClass} ${transitionClass} ${cursorClass} touch-none group`}
+      className={`z-30 border bg-background p-2 shadow-md hover:bg-muted/80 ${borderClass} ${roundedClass} ${transitionClass} ${cursorClass} touch-none group`}
       style={{
         ...style,
         touchAction: 'none',
@@ -53,7 +55,7 @@ export default function ProjectSessionsHandle({
         WebkitUserSelect: 'none',
       }}
       aria-label={isOpen ? '收起会话列表' : '展开会话列表'}
-      title="拖拽可停靠在对话窗口左侧或右侧，点击展开/收起会话列表"
+      title="拖拽可停靠在项目侧边栏右侧或窗口右侧，点击展开/收起会话列表"
     >
       {isDragging ? (
         <GripVertical className={`${iconClass} text-primary`} />

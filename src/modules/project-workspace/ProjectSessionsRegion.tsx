@@ -1,5 +1,4 @@
 import { memo, useCallback } from 'react';
-import type { RefObject } from 'react';
 
 import {
   useProjectCommandState,
@@ -9,14 +8,10 @@ import {
 import { ProjectSessionsPanel } from '@/modules/project-sessions-panel';
 import type { SessionWithProvider } from '@/shared/types';
 
-type ProjectSessionsRegionProps = {
-  conversationRegionRef?: RefObject<HTMLDivElement | null>;
-};
-
 /**
  * Rendered by ProjectWorkspaceShell to bind workspace project state to the ProjectSessionsPanel.
  */
-function ProjectSessionsRegion({ conversationRegionRef }: ProjectSessionsRegionProps) {
+function ProjectSessionsRegion() {
   const { selectedProject, selectedSession, renameSession } = useProjectMainState();
   const { handleNewSession } = useProjectCommandState();
   const { sidebarSharedProps } = useProjectSidebarState();
@@ -42,7 +37,6 @@ function ProjectSessionsRegion({ conversationRegionRef }: ProjectSessionsRegionP
     <ProjectSessionsPanel
       project={activeProject}
       selectedSession={selectedSession}
-      conversationRegionRef={conversationRegionRef}
       onSessionSelect={handleSessionSelect}
       onNewSession={handleTriggerNewSession}
       onSessionDelete={sidebarSharedProps.onSessionDelete}
@@ -50,7 +44,6 @@ function ProjectSessionsRegion({ conversationRegionRef }: ProjectSessionsRegionP
       onRenameSession={renameSession}
       isLoading={sidebarSharedProps.isLoading}
       attentionSessionIds={sidebarSharedProps.attentionSessionIds}
-      selectedProjectForDocking={activeProject}
     />
   );
 }
