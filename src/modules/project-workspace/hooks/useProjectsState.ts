@@ -13,6 +13,7 @@ import type { ServerEvent,
   IsSessionProcessing } from '@/shared/types';
 import { mergeProjectSelectionMetadata } from '@/modules/project-workspace/utils/projectSelectionMetadata';
 import {
+  findLatestSessionInProject,
   persistActiveProjectAndSession,
   resolveInitialProjectAndSession,
 } from '@/modules/project-workspace/utils/sessionRestore';
@@ -1075,11 +1076,35 @@ export function useProjectsState({
   const handleProjectSelect = useCallback(
     (project: Project) => {
       setSelectedProject(project);
-      setSelectedSession(null);
-      navigate('/');
-
       if (isMobile) {
         setSidebarOpen(false);
+      }
+
+      // The project passed in from the sidebar carries its first session page,
+      // but a refresh/deep-link can hand over a metadata-only copy. Resolve the
+      // session-bearing version from `projects` so the chat lands on the
+      // project's most recently active conversation instead of a blank composer.
+      // Read through the ref so this callback keeps a stable identity — it is
+      // handed to every memoized sidebar row, and a new identity on each
+      // session upsert would re-render the whole project list.
+      const sessionProject = projectsRef.current.find(
+        (candidate) => candidate.projectId === project.projectId,
+      ) ?? project;
+      const latestSession = findLatestSessionInProject(sessionProject);
+
+      if (latestSession) {
+        const normalized = normalizeSessionProvider(latestSession);
+        setSelectedSession(normalized);
+        // The chat is where the session lands, but a user browsing files or the
+        // shell keeps that tab across the switch — only tabs that cannot exist
+        // without a project fall back to chat, matching session selection.
+        setActiveTab((currentTab) => (
+          currentTab === 'tasks' || currentTab === 'browser' ? 'chat' : currentTab
+        ));
+        navigate(`/session/${latestSession.id}`);
+      } else {
+        setSelectedSession(null);
+        navigate('/');
       }
     },
     [isMobile, navigate],

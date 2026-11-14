@@ -34,6 +34,26 @@ export function findLatestSessionAcrossProjects(projects: Project[]): {
 }
 
 /**
+ * Finds the most recently active session within a single project's loaded
+ * sessions, using the same activity-timestamp precedence as
+ * `findLatestSessionAcrossProjects`. Used when switching projects to land the
+ * chat on that project's latest conversation instead of a blank composer.
+ */
+export function findLatestSessionInProject(project: Project): ProjectSession | null {
+  let newest: { session: ProjectSession; timestamp: number } | null = null;
+
+  for (const session of project.sessions ?? []) {
+    const timeStr = session.lastActivity || session.updated_at || session.createdAt || session.created_at;
+    const timestamp = timeStr ? Date.parse(timeStr) : 0;
+    if (!newest || timestamp > newest.timestamp) {
+      newest = { session, timestamp };
+    }
+  }
+
+  return newest ? newest.session : null;
+}
+
+/**
  * Persists the currently viewed project and session identifiers into localStorage.
  */
 export function persistActiveProjectAndSession(
